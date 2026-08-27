@@ -1,0 +1,97 @@
+[project]
+name = "edu-agent-harness"
+version = "0.1.0"
+description = "Pedagogy-Aware Educational AI Agent Engineering Harness — design, compile, build, simulate and evaluate educational AI agents from structured Markdown specifications."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [{ name = "edu-agent-harness contributors" }]
+keywords = ["education", "ai-agent", "instructional-design", "llm", "evaluation", "harness"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Education",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Education",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "typer>=0.15",
+  "rich>=13.9",
+  "pydantic>=2.9",
+  "pyyaml>=6.0",
+  "jinja2>=3.1",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+# LLM providers are optional extras so that the core CLI stays light.
+openai = ["openai>=1.50"]
+anthropic = ["anthropic>=0.40"]
+gemini = ["google-genai>=1.0"]
+all-providers = ["openai>=1.50", "anthropic>=0.40", "google-genai>=1.0"]
+
+[project.scripts]
+edu-agent = "edu_agent.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/edu-agent-harness/edu-agent-harness"
+Issues = "https://github.com/edu-agent-harness/edu-agent-harness/issues"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.8",
+  "pyright>=1.1.390",
+  "types-PyYAML>=6.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/edu_agent"]
+
+# Templates live outside the package on disk for readability, but are shipped
+# inside the wheel so `edu-agent` works after `pip install`.
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "edu_agent/_templates"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/edu_agent", "templates", "examples", "tests", "docs", "README.md", "LICENSE"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+  "RUF001", # ambiguous unicode characters (Korean text in strings)
+  "RUF002",
+  "RUF003",
+  "E501",   # line length handled by formatter; long Korean prompts are fine
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["edu_agent"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+reportMissingImports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning:edu_agent.*"]

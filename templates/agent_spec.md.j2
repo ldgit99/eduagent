@@ -1,0 +1,195 @@
+# 에이전트 명세 (Agent Specification)
+
+> 이 문서는 **사람이 읽는 문서이자 실제로 실행되는 명세**입니다.
+> `edu-agent run` 은 이 파일을 그대로 해석해 에이전트를 실행합니다.
+> 직접 고쳐도 되지만, 01~03 문서를 고친 뒤 `edu-agent compile` 을 다시 실행하는 것이 안전합니다.
+
+## 1. 목적
+{{ d.purpose | orblank }}
+
+## 2. 대상 학습자
+{{ d.target_learner | orblank }}
+
+## 3. 학습목표
+{{ d.learning_goals | bullet }}
+
+## 4. 에이전트 역할
+{{ d.agent_role | orblank }}
+
+## 5. 핵심 행동
+
+{% for b in d.behaviors %}
+### {{ b.id }} — {{ b.name }}
+
+- **언제**: {{ b.triggers | map(attribute='value') | join(', ') }}
+{% if b.ladder %}
+
+| 단계 | 행동 | 조건 |
+|---|---|---|
+{% for s in b.ladder %}
+| {{ s.level }} | `{{ s.label }}` | {{ s.when or '항상' }} |
+{% endfor %}
+{% endif %}
+{% if b.actions %}
+- **행동**: {{ b.actions | map(attribute='value') | join(', ') }}
+{% endif %}
+{% if b.evaluation %}
+- **검사 기준**: {{ b.evaluation | join(', ') }}
+{% endif %}
+{% else %}
+- (없음)
+{% endfor %}
+
+## 6. 대화 흐름
+
+{% for p in d.phases %}
+### {{ loop.index }}. {{ p.title }}
+- 목표: {{ p.goal | orblank }}
+- 이 단계의 행동: {{ p.allowed_actions | map(attribute='value') | join(', ') | orblank }}
+{% if p.enter_when %}
+- 진입 조건: `{{ p.enter_when }}`
+{% endif %}
+{% if p.exit_when %}
+- 종료 조건: `{{ p.exit_when }}`
+{% endif %}
+{% else %}
+- (없음)
+{% endfor %}
+
+## 7. 학습자 상태 모델
+
+> 실행 중 추적되는 값입니다. 아래 조건식(`attempts >= 3` 등)이 이 값을 사용합니다.
+
+| 변수 | 설명 | 증가 | 초기화 |
+|---|---|---|---|
+{% for v in d.state_variables %}
+| `{{ v.name }}` | {{ v.description }} | {{ (v.increment_on + v.set_true_on) | map(attribute='value') | join(', ') | orblank('—') }} | {{ (v.reset_on + v.set_false_on) | map(attribute='value') | join(', ') | orblank('—') }} |
+{% endfor %}
+
+## 8. 스캐폴딩 방침
+{{ d.scaffolding_policy | orblank }}
+
+## 9. 피드백 방침
+{{ d.feedback_policy | orblank }}
+
+## 10. 학습자 주도성 방침
+{{ d.agency_policy | orblank }}
+
+## 11. 정책 게이트 (실행 중 강제)
+
+> 아래 규칙은 **모델의 응답이 학습자에게 도달하기 전에** 검사됩니다.
+> 위반하면 다시 생성하고, 계속 실패하면 안전한 응답으로 대체한 뒤 기록에 남깁니다.
+
+{% if d.gates %}
+| ID | 규칙 | 종류 | 원리 |
+|---|---|---|---|
+{% for g in d.gates %}
+| {{ g.id }} | {{ g.constraint.text or g.message }} | `{{ g.constraint.kind.value }}` | {{ g.principle_id or '—' }} |
+{% endfor %}
+{% else %}
+- (없음) — hard 제약이 하나도 없으면 실행 중에 강제되는 규칙이 없습니다.
+{% endif %}
+
+## 12. 도구
+
+{% if d.tools %}
+{% for t in d.tools %}
+- **{{ t.name }}**: {{ t.description | orblank }}{% if t.permissions %} (권한: `{{ t.permissions | join('`, `') }}`){% endif %}{% if t.sandboxed %} · 샌드박스{% endif %}
+{% endfor %}
+{% else %}
+- 없음
+{% endif %}
+
+## 13. 기억
+
+- 대화 중 기억: {{ d.memory.session_memory | yesno }}
+- 학습자 진도: {{ d.memory.learner_progress | yesno }}
+- 장기 기억: {{ d.memory.long_term_memory | yesno }}
+- 기록에서 개인정보 가림: {{ d.memory.redact_pii | yesno }}
+{% if d.memory.what_is_stored %}
+{{ d.memory.what_is_stored | bullet }}
+{% endif %}
+
+## 14. 안전·윤리
+
+### 일반
+{{ d.safety.general_rules | bullet }}
+
+### 교육학적 안전
+> 정답 과잉 공개, 오개념 강화, 스캐폴딩 포기, 아첨(틀린 주장에 굴복)은
+> 교육 맥락에서의 안전 문제로 다룹니다.
+
+{{ d.safety.pedagogical_rules | bullet }}
+
+- 개인정보: {{ d.safety.pii_action }}
+{% if d.safety.escalation %}
+- 한계 상황: {{ d.safety.escalation }}
+{% endif %}
+
+## 15. 시스템 프롬프트
+
+> 실행할 때 모델에게 전달되는 안내문입니다. `edu-agent run --show-prompt` 로도 볼 수 있습니다.
+
+```text
+{{ d.system_prompt }}
+```
+
+## 16. 평가 기준
+
+| ID | 기준 | 검사 방식 | 지표 |
+|---|---|---|---|
+{% for c in d.criteria %}
+| {{ c.id }} | {{ c.statement }} | {{ '자동 검사' if c.check.value == 'deterministic' else ('AI 판정' if c.check.value == 'llm_judge' else '사람 채점') }} | `{{ c.metric }}` |
+{% endfor %}
+
+## 17. 테스트 시나리오
+
+{% for s in d.scenarios %}
+### {{ s.id }} — {{ s.name }}
+- 학생: `{{ s.persona_id }}` · 최대 {{ s.max_turns }}턴 · {{ s.seeds }}회 반복
+{% if s.criteria %}
+- 검사 기준: {{ s.criteria | join(', ') }}
+{% endif %}
+{% if s.opening %}
+- 첫 발화: "{{ s.opening }}"
+{% endif %}
+{% if s.turns %}
+- 대본:
+{% for t in s.turns %}
+{% if t.text %}
+  {{ loop.index }}. "{{ t.text }}"{% if t.forbid_actions %} — 금지: {{ t.forbid_actions | map(attribute='value') | join(', ') }}{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% else %}
+- (없음)
+{% endfor %}
+
+## 18. judge 보정
+
+- 사람이 채점할 표본 수: {{ d.calibration.n_samples }}
+- 신뢰 기준: κ ≥ {{ d.calibration.min_agreement }}
+{% if d.calibration.dimensions %}
+- 대상 항목: {{ d.calibration.dimensions | join(', ') }}
+{% endif %}
+
+> AI 판정 점수는 사람 채점과 비교되기 전까지 참고용입니다. `edu-agent calibrate` 를 실행하세요.
+
+## 19. 추적성
+
+> 설계원리가 어떤 행동·규칙·검사·시나리오로 이어졌는지 보여줍니다.
+> 시나리오까지 이어지지 않은 원리는 **검증되지 않습니다**.
+
+| 원리 | 지침 | 행동 | 게이트 | 검사 기준 | 시나리오 | 완결 |
+|---|---|---|---|---|---|---|
+{% for t in d.traceability %}
+| {{ t.principle_id }} | {{ t.guideline_ids | join(', ') | orblank('—') }} | {{ t.behavior_ids | join(', ') | orblank('—') }} | {{ t.gate_ids | join(', ') | orblank('—') }} | {{ t.criterion_ids | join(', ') | orblank('—') }} | {{ t.scenario_ids | join(', ') | orblank('—') }} | {{ '✔' if t.complete else '⚠️' }} |
+{% endfor %}
+
+{% if d.compiler_notes %}
+---
+
+## 컴파일 메모
+
+{{ d.compiler_notes | bullet }}
+{% endif %}

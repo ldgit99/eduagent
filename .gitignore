@@ -1,0 +1,19 @@
+# 로컬 실행 기록 (대화 내용이 들어 있습니다)
+.edu-agent/
+
+# API 키
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# 도구
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

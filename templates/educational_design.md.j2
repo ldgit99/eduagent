@@ -1,0 +1,116 @@
+# 교육 설계 (Educational Design)
+
+> 이 문서는 **당신이 결정하는 것**입니다. 하네스는 구조화와 누락 확인만 돕습니다.
+
+## 1. 학습 맥락
+
+| 항목 | 내용 |
+|---|---|
+| 대상 학습자 | {{ d.context.target_learners | orblank }} |
+| 연령 또는 학년 | {{ d.context.age_or_grade | orblank }} |
+| 교과/영역 | {{ d.context.subject | orblank }} |
+| 학습 주제 | {{ d.context.topic | orblank }} |
+| 활용 상황 | {{ d.context.usage_situation | orblank }} |
+| 예상 사용자 수 | {{ d.context.expected_users | orblank('미정') }} |
+
+## 2. 학습 문제
+
+### 현재 학습자가 겪는 어려움
+{{ d.problem.current_difficulties | orblank }}
+
+### 해결하고자 하는 핵심 문제
+{{ d.problem.core_problem | orblank }}
+
+### 기존 학습방법 또는 지원의 한계
+{{ d.problem.limitations_of_existing_support | orblank }}
+
+## 3. 학습목표
+
+{% if d.objectives %}
+{% for o in d.objectives %}
+- **{{ o.id }}**: {{ o.statement }}{% if o.evidence %}
+  - 확인 방법: {{ o.evidence }}{% endif %}
+{% endfor %}
+{% else %}
+- (아직 없음)
+{% endif %}
+
+## 4. 학습활동
+
+{% if d.activities %}
+{% for a in d.activities | sort(attribute='order') %}
+- **{{ a.id }}**{% if a.order %} ({{ a.order }}단계){% endif %}: {{ a.name }}{% if a.learner_self_directed %} — *학생이 스스로 수행*{% endif %}
+{% if a.description %}
+  - {{ a.description }}
+{% endif %}
+{% endfor %}
+{% else %}
+- (아직 없음)
+{% endif %}
+
+## 5. AI 활용 맥락
+
+- **AI가 개입하는 시점**: {{ d.ai_usage.intervention_points | join(', ') | orblank }}
+- **AI 활용 전 학습자 활동**: {{ d.ai_usage.before_ai | orblank }}
+- **AI 활용 중 학습자 활동**: {{ d.ai_usage.during_ai | orblank }}
+- **AI 활용 후 학습자 활동**: {{ d.ai_usage.after_ai | orblank }}
+
+## 6. 기대하는 AI 지원
+
+- **지원 유형**: {{ d.expected_support.types | map(attribute='value') | join(', ') | orblank }}
+{% if d.expected_support.other_description %}
+- **기타**: {{ d.expected_support.other_description }}
+{% endif %}
+
+### AI가 반드시 해야 하는 행동
+{{ d.expected_support.must_do | bullet }}
+
+### AI가 해서는 안 되는 행동
+{{ d.expected_support.must_not_do | bullet }}
+
+## 7. 과제와 정답 기준
+
+> 정답 기준이 있어야 "AI가 정답을 미리 알려줬는지"를 사람 판단 없이 정확히 검사할 수 있습니다.
+
+{% if d.tasks %}
+{% for t in d.tasks %}
+### {{ t.id }}{% if t.title %} — {{ t.title }}{% endif %}
+
+{% if t.prompt_file %}
+- 과제 파일: `{{ t.prompt_file }}`
+{% endif %}
+- 정답 기준: {{ '있음' if t.reference_answer or t.answer_fragments else '**없음 — 누출 검사가 추정에 그칩니다**' }}
+{% if t.common_errors %}
+- 흔한 오류: {{ t.common_errors | join('; ') }}
+{% endif %}
+{% if t.misconceptions %}
+- 관련 오개념: {{ t.misconceptions | join('; ') }}
+{% endif %}
+{% endfor %}
+{% else %}
+- (아직 없음) — `tasks/` 폴더에 과제를 넣고 `edu-agent review 01` 을 다시 실행하세요.
+{% endif %}
+
+## 8. 학습자 상태 신호
+
+> 에이전트가 실행 중에 추적하는 값입니다. 설계원리의 조건("3회 이상 시도했다면")이 이 값을 사용합니다.
+
+{% if d.learner_state_signals %}
+{% for s in d.learner_state_signals %}
+- `{{ s.variable }}`: {{ s.meaning }}{% if s.how_detected %} ({{ s.how_detected }}){% endif %}
+{% endfor %}
+{% else %}
+- 기본값 사용: `attempts`, `help_requests`, `stuck_turns`, `reasoning_shown`, `misconception_active`
+{% endif %}
+
+## 9. 성공의 모습
+
+> 튜터가 아니라 **학습자 쪽에서** 관찰되어야 하는 것입니다.
+
+{% if d.success_indicators %}
+{% for s in d.success_indicators %}
+- {{ s.statement }}{% if s.metric %} → `{{ s.metric }}`{% endif %}
+{% endfor %}
+{% else %}
+- (아직 없음)
+{% endif %}

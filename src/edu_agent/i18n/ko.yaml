@@ -1,0 +1,132 @@
+# 한국어 메시지 카탈로그
+app:
+  description: "교육용 AI 에이전트를 설계·실행·검증하는 하네스"
+  tagline: "설계원리를 에이전트의 행동으로, 그리고 검증 가능한 기준으로."
+
+common:
+  yes: "예"
+  no: "아니오"
+  unknown: "잘 모르겠음 / 추천해 주세요"
+  later: "나중에 (저장 후 종료)"
+  confirm: "확인"
+  edit: "수정"
+  add: "내용 추가"
+  back: "이전"
+  saved: "저장했습니다: {path}"
+  cancelled: "취소했습니다. 지금까지 입력한 내용은 저장되었습니다."
+  why_ask: "왜 묻나요?"
+  recommended: "권장"
+  next_step: "다음 할 일"
+  none: "없음"
+
+status:
+  title: "프로젝트 상태"
+  doc_missing: "없음"
+  draft: "작성 중"
+  confirmed: "확인 완료"
+  needs_sync: "본문 수정됨 — 동기화 필요"
+  compiled: "컴파일됨"
+  stale: "입력 문서가 바뀜 — 다시 compile 필요"
+  hint_review: "edu-agent review {doc}"
+  hint_compile: "edu-agent compile"
+  hint_run: "edu-agent run"
+  hint_test: "edu-agent test"
+  hint_init: "edu-agent init"
+
+doctor:
+  title: "환경 점검"
+  python_ok: "Python {version}"
+  python_old: "Python 3.12 이상이 필요합니다 (현재 {version})"
+  project_found: "프로젝트: {name}"
+  project_missing: "이 폴더에는 프로젝트가 없습니다. 'edu-agent init'으로 만드세요."
+  env_file: ".env 파일"
+  key_missing: "API 키가 설정되지 않았습니다"
+  key_ok: "API 키 확인됨 (…{tail})"
+  base_url: "서버 주소: {url}"
+  model: "모델: {model}"
+  reach_ok: "모델 응답 확인됨 ({ms}ms)"
+  reach_fail: "모델에 연결하지 못했습니다: {error}"
+  no_key_hint: |
+    API 키가 없습니다. 다음 중 하나를 하세요.
+      1) 교수자가 배포한 키를 프로젝트 폴더의 .env 파일에 붙여넣기
+         EDU_AGENT_API_KEY=...
+      2) 키 없이 문서 작업만 하려면 명령에 --no-llm 을 붙이기
+  all_ok: "모두 정상입니다. 'edu-agent init' 또는 'edu-agent status'로 시작하세요."
+
+init:
+  welcome: "새 교육용 AI 에이전트 프로젝트를 만듭니다."
+  ask_name: "프로젝트 이름 (영문 소문자, 하이픈)"
+  ask_title: "무엇을 만들고 싶은지 한 문장으로 적어 주세요"
+  created: "프로젝트를 만들었습니다: {path}"
+  next: "이제 'edu-agent review 01'로 교육 설계를 시작하세요."
+  exists: "이미 프로젝트가 있습니다: {path}"
+
+review:
+  step: "STEP {n} / {total}"
+  summary_title: "다음과 같이 이해했습니다"
+  confirm_question: "이 내용이 맞습니까?"
+  missing_title: "아직 비어 있는 항목"
+  drift_detected: "본문이 직접 수정되었습니다. 구조화된 내용을 갱신할까요?"
+  drift_keep: "본문을 그대로 두고 구조만 유지"
+  ok: "{doc} 확인 완료"
+  no_llm: "AI 도움 없이 진행합니다 (--no-llm). 구조화는 직접 입력해야 합니다."
+
+principles:
+  library_title: "설계원리 라이브러리"
+  library_help: "문헌 근거가 있는 원리입니다. 선택한 뒤 자유롭게 수정할 수 있습니다."
+  pick: "추가할 원리의 번호를 쉼표로 입력하세요 (예: 1,3,5)"
+  own: "직접 작성하거나 붙여넣기"
+  structuring: "자연어 원리를 실행 가능한 규칙으로 바꾸는 중…"
+  structure_title: "이 원리를 이렇게 실행하려고 합니다"
+  structure_confirm: "이 규칙이 의도와 맞습니까?"
+  unconfirmed: "확인되지 않은 원리는 컴파일에 포함되지 않습니다."
+
+compile:
+  running: "에이전트 명세를 만드는 중…"
+  blocked: "먼저 해결해야 할 문제가 있습니다."
+  conflict: "설계원리 간 충돌"
+  done: "04_agent_spec.md 를 만들었습니다."
+  traceability: "추적성"
+  gates_made: "정책 게이트 {n}개를 만들었습니다."
+
+run:
+  banner: "{name} · 대화를 시작합니다. 종료하려면 /quit"
+  privacy: "이 대화는 이 컴퓨터의 .edu-agent/ 폴더에만 기록됩니다."
+  gate_blocked: "[정책 게이트가 응답을 수정했습니다: {reason}]"
+  fallback: "[안전한 응답으로 대체했습니다]"
+  ended: "대화를 마쳤습니다. 기록: {path}"
+
+test:
+  running: "시뮬레이션 학생과 대화하는 중… ({done}/{total})"
+  evaluating: "평가하는 중…"
+  title: "교육적 실행 충실도 평가"
+  overall: "종합"
+  pass_: "통과"
+  fail: "실패"
+  calibration_warn: "judge 점수는 사람 채점으로 보정되기 전까지 참고용입니다."
+  limitation: |
+    이 결과는 시뮬레이션 학생을 상대로 한 것입니다.
+    설계 의도가 실행되는지 확인하는 자료이지, 실제 학습 효과의 증거가 아닙니다.
+
+improve:
+  found: "{n}개의 개선안을 찾았습니다."
+  none: "고칠 것을 찾지 못했습니다. 평가 결과가 이미 기준을 만족합니다."
+  which: "어떤 변경을 적용하시겠습니까?"
+  all: "모두 적용"
+  nothing: "적용하지 않음"
+  applied: "{n}개를 적용했습니다. 'edu-agent test'로 다시 검증하세요."
+  verifying: "적용한 변경을 재검증하는 중…"
+  regression: "회귀가 발생했습니다: {what}. 되돌립니다."
+  improved: "개선됨: {before} → {after}"
+  no_improvement: "개선되지 않았습니다 ({before} → {after}). 되돌립니다."
+  needs_human: "이 변경은 설계원리를 바꾸므로 직접 확인해야 합니다."
+  rolled_back: "버전 {version}으로 되돌렸습니다."
+
+errors:
+  no_project: "프로젝트를 찾을 수 없습니다. 'edu-agent init'을 먼저 실행하세요."
+  doc_missing: "{doc} 파일이 없습니다. 'edu-agent review {n}'을 먼저 실행하세요."
+  spec_missing: "04_agent_spec.md 가 없습니다. 'edu-agent compile'을 먼저 실행하세요."
+  spec_stale: "입력 문서가 바뀌었습니다. 'edu-agent compile'을 다시 실행하세요."
+  no_provider: "AI 모델에 연결할 수 없습니다. 'edu-agent doctor'로 확인하세요."
+  invalid_choice: "1부터 {max}까지의 번호를 입력하세요."
+  file_error: "파일을 읽을 수 없습니다: {path}"

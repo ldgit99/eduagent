@@ -1,0 +1,120 @@
+# 기술 명세 (Technical Specification)
+
+> 기술 이름을 먼저 정하지 않습니다. **무엇이 필요한지**를 정하면 하네스가 추천합니다.
+
+## 0. 요구사항 (당신이 답한 것)
+
+| 질문 | 답 |
+|---|---|
+| AI가 별도의 교과서나 학습자료를 참고해야 합니까? | {{ d.requirements.needs_external_materials | yesno }} |
+| 학생별 학습기록을 다음 접속에서도 기억해야 합니까? | {{ d.requirements.needs_persistent_learner_memory | yesno }} |
+| 학생은 웹 브라우저에서 사용합니까? | {{ d.requirements.uses_web_browser | yesno }} |
+| 약 몇 명이 사용할 예정입니까? | {{ d.requirements.expected_users | orblank('미정') }} |
+| AI가 코드를 실제로 실행해야 합니까? | {{ d.requirements.needs_code_execution | yesno }} |
+| 이미지나 파일을 입력받아야 합니까? | {{ d.requirements.needs_multimodal_input | yesno }} |
+| LMS와 연동해야 합니까? | {{ d.requirements.needs_lms_integration | yesno }} |
+| 인터넷 없이 로컬에서 돌아야 합니까? | {{ d.requirements.must_run_offline_or_local | yesno }} |
+
+{% if d.requirements.data_sensitivity %}
+- 개인정보 관련 메모: {{ d.requirements.data_sensitivity }}
+{% endif %}
+
+## 1. 실행 방식
+
+- **{{ {'harness_runtime': '하네스 런타임 (edu-agent run) — 코드를 만들지 않고 04 문서를 그대로 실행', 'export_cli': 'Python CLI 프로젝트로 내보내기', 'export_fastapi': 'FastAPI 프로젝트로 내보내기 (실험적)'}[d.execution_path.value] }}**
+
+## 2. AI Provider
+
+| 항목 | 값 |
+|---|---|
+| Provider | {{ d.ai_provider.provider.value }} |
+| 튜터 모델 | {{ d.ai_provider.model | orblank('.env 의 EDU_AGENT_MODEL 사용') }} |
+| 평가자 모델 | {{ d.ai_provider.judge_model | orblank('튜터와 동일 (다른 모델 권장)') }} |
+| 시뮬레이션 학생 모델 | {{ d.ai_provider.student_model | orblank('템플릿 사용 (모델 호출 없음)') }} |
+| 세션당 토큰 상한 | {{ d.ai_provider.max_tokens_per_session or '제한 없음' }} |
+
+> API 키는 이 문서에 적지 않습니다. `.env` 파일의 `EDU_AGENT_API_KEY` 에서 읽습니다.
+
+## 3. 에이전트 구조
+
+- **{{ '단일 에이전트' if d.architecture.kind.value == 'single_agent' else '다중 에이전트' }}**
+{% if d.architecture.reason %}
+- 이유: {{ d.architecture.reason }}
+{% endif %}
+
+## 4. 사용 화면
+
+- {{ d.interface.kind.value }}{% if d.interface.notes %} — {{ d.interface.notes }}{% endif %}
+
+## 5. 자료 검색 (RAG)
+
+- **필요 여부**: {{ d.data_rag.required | yesno }}
+{% if d.data_rag.required %}
+- 자료 출처: {{ d.data_rag.sources | join(', ') | orblank }}
+- 검색 방식: {{ d.data_rag.retrieval.value }}
+{% if d.data_rag.vector_store %}
+- 벡터 저장소: {{ d.data_rag.vector_store }}
+{% endif %}
+{% endif %}
+
+## 6. 기억
+
+| 범위 | 사용 |
+|---|---|
+| 대화 중 기억 | {{ d.memory.session_memory | yesno }} |
+| 학습자 진도 | {{ d.memory.learner_progress | yesno }} |
+| 장기 기억 | {{ d.memory.long_term_memory | yesno }} |
+
+{% if d.memory.retention_note %}
+- {{ d.memory.retention_note }}
+{% endif %}
+
+## 7. 도구
+
+{% if d.tools %}
+{% for t in d.tools %}
+### {{ t.kind.value }}
+- {{ t.description | orblank }}
+- 샌드박스: {{ t.sandboxed | yesno }}
+{% if t.permissions %}
+- 권한: `{{ t.permissions | join('`, `') }}`
+{% endif %}
+{% endfor %}
+{% else %}
+- 없음 (대화만으로 충분합니다)
+{% endif %}
+
+## 8. 저장
+
+- 데이터베이스: {{ d.storage.database }}
+- 실행 기록(trace): {{ d.storage.trace_storage }} — `.edu-agent/` 폴더에만 저장되며 Git에 올라가지 않습니다.
+
+## 9. 배포
+
+- {{ d.deployment.kind.value }}{% if d.deployment.notes %} — {{ d.deployment.notes }}{% endif %}
+
+## 10. 보안·개인정보
+
+| 항목 | 값 |
+|---|---|
+| API 키를 환경변수로 관리 | {{ d.security.api_keys_via_env | yesno }} |
+| 개인정보 저장 | {{ d.security.stores_personal_data | yesno }} |
+| 대화 기록 저장 | {{ d.security.logs_conversations | yesno }} |
+| 기록에서 개인정보 가림 | {{ d.security.log_redaction | yesno }} |
+| 역할 | {{ d.security.roles | join(', ') }} |
+
+{% if d.security.personal_data_note %}
+- {{ d.security.personal_data_note }}
+{% endif %}
+
+## 11. 기술 결정과 이유
+
+{% if d.decisions %}
+| 영역 | 선택 | 이유 | 결정 주체 |
+|---|---|---|---|
+{% for dec in d.decisions %}
+| {{ dec.area }} | {{ dec.choice }} | {{ dec.reason }} | {{ {'user': '직접 선택', 'recommended': '하네스 추천', 'default': '기본값'}[dec.origin.value] }} |
+{% endfor %}
+{% else %}
+- (아직 없음)
+{% endif %}

@@ -1,0 +1,29 @@
+name: c-debugging-coach
+title: C 프로그래밍 디버깅 코치
+language: ko
+harness_version: 0.1.0
+provider:
+  kind: openai_compatible
+  base_url: ''
+  api_key_env: EDU_AGENT_API_KEY
+  model: ''
+  judge_model: ''
+  student_model: ''
+  temperature: 0.3
+  max_output_tokens: 1024
+  timeout_s: 60
+  max_retries: 2
+  max_tokens_per_session: 20000
+evaluation:
+  seeds: 2
+  max_turns: 8
+  judge_enabled: true
+  order_swap: true
+  calibration_threshold: 0.7
+  holdout_scenarios: []
+improve:
+  max_rounds: 3
+  min_improvement: 0.05
+  auto_level: 'off'
+  allow_structure_edits: false
+  max_llm_calls: 200

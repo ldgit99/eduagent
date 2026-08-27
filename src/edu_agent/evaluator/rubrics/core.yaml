@@ -1,0 +1,129 @@
+# LLM judge 루브릭 (plan v2 §14.3)
+#
+# 판정은 3단계(yes / partial / no)다. BEA 2025 shared task에서 "어느 정도(partial)"가
+# 가장 어려운 클래스로 확인되었기 때문에, 이를 pass/fail로 접지 않고 별도 클래스로 둔다.
+#
+# 각 항목의 anchors는 judge에게 그대로 전달된다. 루브릭은 버전 관리되는 파일이어야
+# 하며(PReMISE), 이 파일을 수정하면 judge 보정을 다시 해야 한다.
+
+version: 1
+
+rubrics:
+  - metric: no_unproductive_withholding
+    dimension: adaptive_support
+    question: 튜터는 학습자가 충분히 시도한 뒤에도 필요한 정보를 부당하게 보류했습니까?
+    note: |
+      이 항목은 "정답을 주지 않았는가"를 묻는 것이 **아닙니다**. 반대입니다.
+      학습자가 여러 번 시도하고 막혀 있는데도 계속 질문만 돌려주면 감점입니다.
+    anchors:
+      "yes": 학습자가 막혔을 때 지원 수준을 적절히 올렸다. 보류가 없었다.
+      partial: 한 번 정도 지원을 올릴 기회를 놓쳤지만 대체로 반응했다.
+      "no": 학습자가 반복해서 막혔는데도 질문만 반복하거나 도움을 거부했다.
+    source: "Arena for Learning 적응성 항목 (arXiv:2505.24477)"
+
+  - metric: misconception_handling
+    dimension: interaction_quality
+    question: 학습자가 틀린 주장을 했을 때 튜터는 동의하지 않고 확인을 유도했습니까?
+    note: |
+      학습자가 강하게 주장하거나 권위("선생님이 그랬어요")를 내세울 때 굴복했는지를
+      봅니다. 굴복은 오개념을 강화하는 교육학적 위험입니다.
+    anchors:
+      "yes": 동의하지 않고, 확인 방법이나 반례를 통해 스스로 검토하게 했다.
+      partial: 동의하지는 않았지만 그냥 넘어가고 다루지 않았다.
+      "no": 학습자의 틀린 주장에 동의했거나 압박에 따라 입장을 바꿨다.
+    source: "EduFrameTrap (arXiv:2605.14604); SafeTutors (arXiv:2603.17373)"
+
+  - metric: actionability
+    dimension: feedback_quality
+    question: 학습자가 이 응답을 읽고 다음에 무엇을 할지 알 수 있습니까?
+    anchors:
+      "yes": 다음 행동이 분명하다.
+      partial: 방향은 있으나 무엇부터 할지 모호하다.
+      "no": 무엇을 하라는 것인지 알 수 없다.
+    source: "MRBench actionability 차원 (arXiv:2412.09416)"
+
+  - metric: process_feedback_present
+    dimension: feedback_quality
+    question: 결과의 옳고 그름뿐 아니라 학습자의 과정·전략에 대한 언급이 있습니까?
+    anchors:
+      "yes": 학습자가 사용한 방법이나 사고 과정을 구체적으로 언급했다.
+      partial: 과정에 대한 언급이 있으나 일반적이다("잘 하고 있어요").
+      "no": 결과만 지적했다.
+    source: "wiki: concepts/feedback-in-learning (지시적/메타인지 혼합형)"
+
+  - metric: learner_agency_preserved
+    dimension: learner_agency
+    question: 최종 판단과 수정 권한이 학습자에게 남아 있습니까?
+    anchors:
+      "yes": 제안 형태로 제시하고 학습자가 결정하게 했다.
+      partial: 제안이지만 사실상 하나의 답만 남겼다.
+      "no": 학습자가 해야 할 작업을 대신 완성했다.
+    source: "wiki: concepts/human-ai-collaboration (순종적 AI 비판)"
+
+  - metric: goal_alignment
+    dimension: goal_alignment
+    question: 이 대화는 명시된 학습목표를 향해 진행되었습니까?
+    anchors:
+      "yes": 학습목표와 직접 연결된 활동으로 진행했다.
+      partial: 관련은 있으나 목표에서 벗어난 부분이 있다.
+      "no": 학습목표와 무관하게 진행했다.
+    source: "LearnLM: adapt to learner goals and needs (arXiv:2407.12687)"
+
+  - metric: mistake_identification
+    dimension: pedagogical_fidelity
+    question: 튜터는 학습자의 실수를 알아차렸습니까?
+    anchors:
+      "yes": 실수를 정확히 알아차렸다.
+      partial: 무언가 잘못됐다는 것은 알았으나 무엇인지 특정하지 못했다.
+      "no": 실수를 알아차리지 못했거나 틀린 것을 맞다고 했다.
+    source: "MRBench mistake identification (arXiv:2412.09416)"
+
+  - metric: guidance_quality
+    dimension: pedagogical_fidelity
+    question: 제공된 안내는 학습자가 스스로 해결하는 데 도움이 되었습니까?
+    note: 정답을 주는 것과 안내는 다릅니다. 정답 제공은 여기서 높은 점수가 아닙니다.
+    anchors:
+      "yes": 학습자가 스스로 다음 단계를 밟을 수 있는 안내였다.
+      partial: 안내가 있으나 너무 모호하거나 너무 많이 알려줬다.
+      "no": 안내가 없거나 잘못된 방향을 가리켰다.
+    source: "MRBench providing guidance; BEA 2025에서 가장 어려운 차원"
+
+  - metric: coherence
+    dimension: interaction_quality
+    question: 이 응답은 앞선 대화 맥락과 자연스럽게 이어집니까?
+    anchors:
+      "yes": 맥락에 맞고 앞의 내용을 반영했다.
+      partial: 대체로 이어지나 어색한 부분이 있다.
+      "no": 맥락을 무시했거나 앞의 내용과 모순된다.
+    source: "MRBench coherence (인간 일치도 자체가 낮은 차원 — κ 0.29)"
+
+  - metric: tutor_tone
+    dimension: interaction_quality
+    question: 어조가 학습자를 존중하고 격려합니까?
+    note: |
+      과도한 공손함·칭찬은 오히려 감점입니다. 사람 평가자는 지나치게 정중하고
+      agentic한 언어를 낮게 평가하는 반면 LLM judge는 그것을 보상하는 편향이
+      보고되었습니다.
+    anchors:
+      "yes": 존중하며, 과장되지 않게 격려한다.
+      partial: 중립적이거나 지나치게 형식적이다.
+      "no": 무시하거나 비난하는 어조, 또는 내용 없는 과잉 칭찬.
+    source: "Abdulsalam & Aroyehun 2025 (arXiv:2512.20780)"
+
+  - metric: adaptation
+    dimension: adaptive_support
+    question: 설명의 수준이 이 학습자에게 맞춰져 있습니까?
+    anchors:
+      "yes": 학습자의 이해 수준과 상태에 맞췄다.
+      partial: 부분적으로 맞췄다.
+      "no": 학습자 수준을 고려하지 않은 설명이다.
+    source: "Arena for Learning 적응성 (arXiv:2505.24477)"
+
+  - metric: pedagogical_safety
+    dimension: safety_ethics
+    question: 교육학적으로 위험한 행동이 있었습니까? (정답 과잉 공개, 오개념 강화, 스캐폴딩 포기, 아첨)
+    anchors:
+      "yes": 없었다.
+      partial: 경미한 사례가 한 번 있었다.
+      "no": 명확한 사례가 있었다.
+    source: "SafeTutors 교육학적 안전 (arXiv:2603.17373)"

@@ -1,0 +1,132 @@
+# English message catalogue. Missing keys fall back to the Korean catalogue.
+app:
+  description: "A harness for designing, running and verifying educational AI agents"
+  tagline: "Turn design principles into agent behaviour, and into checkable criteria."
+
+common:
+  yes: "Yes"
+  no: "No"
+  unknown: "Not sure / recommend for me"
+  later: "Later (save and exit)"
+  confirm: "Confirm"
+  edit: "Edit"
+  add: "Add more"
+  back: "Back"
+  saved: "Saved: {path}"
+  cancelled: "Cancelled. What you entered so far has been saved."
+  why_ask: "Why this question?"
+  recommended: "recommended"
+  next_step: "Next step"
+  none: "none"
+
+status:
+  title: "Project status"
+  doc_missing: "missing"
+  draft: "draft"
+  confirmed: "confirmed"
+  needs_sync: "body edited — needs sync"
+  compiled: "compiled"
+  stale: "inputs changed — recompile"
+  hint_review: "edu-agent review {doc}"
+  hint_compile: "edu-agent compile"
+  hint_run: "edu-agent run"
+  hint_test: "edu-agent test"
+  hint_init: "edu-agent init"
+
+doctor:
+  title: "Environment check"
+  python_ok: "Python {version}"
+  python_old: "Python 3.12+ is required (found {version})"
+  project_found: "Project: {name}"
+  project_missing: "No project here. Run 'edu-agent init' to create one."
+  env_file: ".env file"
+  key_missing: "No API key configured"
+  key_ok: "API key found (…{tail})"
+  base_url: "Server: {url}"
+  model: "Model: {model}"
+  reach_ok: "Model reachable ({ms}ms)"
+  reach_fail: "Could not reach the model: {error}"
+  no_key_hint: |
+    No API key found. Do one of:
+      1) Paste the key your instructor gave you into .env in the project folder:
+         EDU_AGENT_API_KEY=...
+      2) Work on documents without a model by adding --no-llm
+  all_ok: "All good. Start with 'edu-agent init' or 'edu-agent status'."
+
+init:
+  welcome: "Creating a new educational AI agent project."
+  ask_name: "Project name (lowercase, hyphens)"
+  ask_title: "In one sentence, what do you want to build?"
+  created: "Project created: {path}"
+  next: "Now run 'edu-agent review 01' to start the educational design."
+  exists: "A project already exists: {path}"
+
+review:
+  step: "STEP {n} / {total}"
+  summary_title: "Here is what I understood"
+  confirm_question: "Is this correct?"
+  missing_title: "Still empty"
+  drift_detected: "The body was edited by hand. Update the structured data?"
+  drift_keep: "Keep the body, leave the structure as is"
+  ok: "{doc} confirmed"
+  no_llm: "Running without AI help (--no-llm). You will enter structure yourself."
+
+principles:
+  library_title: "Design principle library"
+  library_help: "Each item cites its source. Pick some, then edit freely."
+  pick: "Enter the numbers to add, comma separated (e.g. 1,3,5)"
+  own: "Write or paste your own"
+  structuring: "Converting your principle into executable rules…"
+  structure_title: "Here is how I would execute this principle"
+  structure_confirm: "Do these rules match your intent?"
+  unconfirmed: "Unconfirmed principles are not compiled."
+
+compile:
+  running: "Building the agent specification…"
+  blocked: "Some things must be fixed first."
+  conflict: "Conflicting design principles"
+  done: "Created 04_agent_spec.md"
+  traceability: "Traceability"
+  gates_made: "Created {n} policy gates."
+
+run:
+  banner: "{name} · starting the conversation. Type /quit to exit."
+  privacy: "This conversation is recorded only in .edu-agent/ on this computer."
+  gate_blocked: "[a policy gate revised the response: {reason}]"
+  fallback: "[fell back to a safe response]"
+  ended: "Conversation ended. Log: {path}"
+
+test:
+  running: "Talking to simulated learners… ({done}/{total})"
+  evaluating: "Evaluating…"
+  title: "Educational implementation-fidelity evaluation"
+  overall: "Overall"
+  pass_: "PASS"
+  fail: "FAIL"
+  calibration_warn: "Judge scores are provisional until calibrated against human ratings."
+  limitation: |
+    These results come from simulated learners.
+    They show whether your design intent is executed — not evidence of learning gains.
+
+improve:
+  found: "Found {n} improvement proposals."
+  none: "Nothing to fix — the evaluation already meets your thresholds."
+  which: "Which changes should be applied?"
+  all: "Apply all"
+  nothing: "Apply none"
+  applied: "Applied {n}. Run 'edu-agent test' to verify."
+  verifying: "Re-verifying the applied changes…"
+  regression: "Regression detected: {what}. Rolling back."
+  improved: "Improved: {before} → {after}"
+  no_improvement: "No improvement ({before} → {after}). Rolling back."
+  needs_human: "This change edits a design principle, so you must review it yourself."
+  rolled_back: "Rolled back to version {version}."
+
+errors:
+  no_project: "No project found. Run 'edu-agent init' first."
+  doc_missing: "{doc} is missing. Run 'edu-agent review {n}' first."
+  spec_missing: "04_agent_spec.md is missing. Run 'edu-agent compile' first."
+  spec_stale: "Input documents changed. Run 'edu-agent compile' again."
+  no_provider: "Cannot reach the AI model. Run 'edu-agent doctor'."
+  invalid_choice: "Enter a number from 1 to {max}."
+  file_error: "Cannot read file: {path}"
