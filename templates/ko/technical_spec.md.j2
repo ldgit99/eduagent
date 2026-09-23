@@ -92,7 +92,13 @@
 
 ## 9. 배포
 
-- {{ d.deployment.kind.value }}{% if d.deployment.notes %} — {{ d.deployment.notes }}{% endif %}
+- {{ d.deployment.kind.value }}{{ ' — ' ~ d.deployment.notes if d.deployment.notes else '' }}
+{% if d.deployment.frontend %}
+- 화면: {{ d.deployment.frontend }}
+{% endif %}
+{% if d.deployment.backend_service %}
+- 데이터·로그인: {{ d.deployment.backend_service }}
+{% endif %}
 
 ## 10. 보안·개인정보
 

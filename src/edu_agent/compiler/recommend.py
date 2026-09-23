@@ -175,7 +175,31 @@ def recommend_stack(spec: TechnicalSpec, *, overwrite: bool = False) -> Technica
         spec.backend = BackendSpec(language="python", framework=BackendFramework.NONE)
         decide("서버", "필요 없음", "하네스 런타임이 직접 실행하므로 별도 서버가 없습니다.")
 
-    if overwrite or spec.deployment.kind is DeploymentKind.LOCAL:
+    # A named stack is a constraint, not a candidate: never recommend over it.
+    if spec.deployment.frontend or spec.deployment.backend_service:
+        named = " + ".join(
+            x for x in (spec.deployment.frontend, spec.deployment.backend_service) if x
+        )
+        if spec.deployment.kind is DeploymentKind.LOCAL:
+            spec.deployment.kind = (
+                DeploymentKind.VERCEL
+                if "vercel" in spec.deployment.frontend.lower()
+                else DeploymentKind.CLOUD
+            )
+        decide("배포", named, "이미 정해진 환경이라 그대로 따릅니다.")
+        if spec.deployment.backend_service:
+            # Naming somewhere to keep data is a statement that data gets kept.
+            spec.security.stores_personal_data = True
+            spec.security.personal_data_note = spec.security.personal_data_note or (
+                f"{spec.deployment.backend_service} 에 학습 기록이 저장됩니다. "
+                "무엇을 저장하고 언제 지우는지를 학생에게 알려야 합니다."
+            )
+            decide(
+                "개인정보",
+                f"{spec.deployment.backend_service} 에 저장됨",
+                "외부 서비스에 학생 기록을 두면 보관 기간과 삭제 방법을 문서에 적어야 합니다.",
+            )
+    elif overwrite or spec.deployment.kind is DeploymentKind.LOCAL:
         users = req.expected_users or 0
         if users > 50:
             spec.deployment = DeploymentSpec(

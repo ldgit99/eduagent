@@ -94,7 +94,13 @@
 
 ## 9. Deployment
 
-- {{ d.deployment.kind.value }}{% if d.deployment.notes %} — {{ d.deployment.notes }}{% endif %}
+- {{ d.deployment.kind.value }}{{ ' — ' ~ d.deployment.notes if d.deployment.notes else '' }}
+{% if d.deployment.frontend %}
+- Frontend: {{ d.deployment.frontend }}
+{% endif %}
+{% if d.deployment.backend_service %}
+- Data and sign-in: {{ d.deployment.backend_service }}
+{% endif %}
 
 ## 10. Security and personal data
 

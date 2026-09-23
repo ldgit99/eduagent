@@ -94,6 +94,44 @@ def _ask_requirements(
         hint="예를 고르면 로컬 모델(Ollama)을 전제로 추천합니다.",
         allow_unknown=True,
     )
+    _ask_existing_stack(ask, doc)
+
+
+def _ask_existing_stack(ask: ui.Prompter, doc: TechnicalSpec) -> None:
+    """The one place this document asks for a technology by name.
+
+    §8 says to ask what is needed and then recommend, and that rule holds for a
+    teacher who is choosing. It does not hold for a teacher whose school already
+    runs on something: they are not choosing, they are reporting a constraint, and
+    recommending Vercel to someone already on Vercel is noise.
+
+    So the brand question is *gated*. A teacher with no stack answers once and
+    never sees a product name; a teacher with one gets to write it down where the
+    compiler and the export scaffold can both see it.
+    """
+    req = doc.requirements
+    if req.must_run_offline_or_local:  # nothing is being hosted anywhere
+        return
+
+    req.has_existing_stack = ask.ask_yes_no(
+        "학교나 팀에서 이미 쓰기로 정해진 배포 환경이 있습니까?",
+        default=req.has_existing_stack,
+        hint="있다면 그것에 맞추어 내보냅니다. 없으면 다음 질문은 건너뛰고 추천해 드립니다.",
+        allow_unknown=True,
+    )
+    if not req.has_existing_stack:
+        return
+
+    doc.deployment.frontend = ask.ask_text(
+        "화면(프론트)은 어디에 올리실 예정입니까?  (예: Vercel, Netlify, 학교 서버)",
+        default=doc.deployment.frontend,
+        hint="내보낼 때 이 환경을 전제로 설명을 씁니다. 정해지지 않았으면 비워 두세요.",
+    )
+    doc.deployment.backend_service = ask.ask_text(
+        "데이터와 로그인은 무엇으로 처리하실 예정입니까?  (예: Supabase, Firebase)",
+        default=doc.deployment.backend_service,
+        hint="학생 기록을 저장하면 개인정보 항목에 그대로 반영됩니다. 대화만 한다면 비워 두세요.",
+    )
 
 
 def _show_reasons(doc: TechnicalSpec) -> None:

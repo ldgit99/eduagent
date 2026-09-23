@@ -5,9 +5,9 @@ meta:
   harness_version: 0.2.0
   status: confirmed
   language: ko
-  created_at: '2026-09-23T06:09:18.930507Z'
-  updated_at: '2026-09-23T06:09:18.973493Z'
-  content_hash: sha256:581f1ad194a408812da3fcf3d8db6022ec5ddeea50e0cbf01aee62eac46bfbe5
+  created_at: '2026-09-23T06:49:31.909396Z'
+  updated_at: '2026-09-23T06:49:31.985670Z'
+  content_hash: sha256:18ff0f5826576791a1928aee9e190eff737c7e2256a841f0efb3609d00310c4a
   input_hashes: {}
 execution_path: harness_runtime
 requirements:
@@ -63,6 +63,8 @@ storage:
 deployment:
   kind: local
   notes: ''
+  frontend: ''
+  backend_service: ''
 security:
   api_keys_via_env: true
   stores_personal_data: false
@@ -180,6 +182,7 @@ decisions:
 ## 9. 배포
 
 - local
+
 ## 10. 보안·개인정보
 
 | 항목 | 값 |

@@ -230,3 +230,77 @@ class TestRecommend:
         spec = TechnicalSpec.new()
         recommend_stack(spec)
         assert spec.execution_path is ExecutionPath.HARNESS_RUNTIME
+
+
+class TestNamedDeploymentStack:
+    """A school that already runs on something is reporting a constraint.
+
+    §8 says to ask what is needed and recommend a technology, and that is right
+    for a teacher who is choosing. It is wrong for a teacher who cannot choose,
+    so a named stack must survive the recommender untouched.
+    """
+
+    def _spec(self, **deployment):
+        from edu_agent.compiler.recommend import recommend_stack
+        from edu_agent.schemas.common import DocumentMeta
+        from edu_agent.schemas.technical import TechnicalSpec
+
+        spec = TechnicalSpec(
+            meta=DocumentMeta(schema_name=TechnicalSpec.SCHEMA_NAME, language="ko")
+        )
+        spec.requirements.expected_users = 30
+        spec.requirements.uses_web_browser = True
+        for key, value in deployment.items():
+            setattr(spec.deployment, key, value)
+        recommend_stack(spec)
+        return spec
+
+    def test_without_a_stack_the_recommendation_is_unchanged(self):
+        from edu_agent.schemas.technical import DeploymentKind
+
+        spec = self._spec()
+        assert spec.deployment.kind is DeploymentKind.LOCAL
+        assert not spec.security.stores_personal_data
+
+    def test_a_named_stack_is_not_overwritten(self):
+        spec = self._spec(frontend="Vercel", backend_service="Supabase")
+        assert spec.deployment.frontend == "Vercel"
+        assert spec.deployment.backend_service == "Supabase"
+        assert any(d.choice == "Vercel + Supabase" for d in spec.decisions)
+
+    def test_naming_somewhere_to_keep_data_turns_on_the_privacy_section(self):
+        """Answering 'Supabase' is a statement that student records get stored."""
+        spec = self._spec(backend_service="Supabase")
+        assert spec.security.stores_personal_data
+        assert "Supabase" in spec.security.personal_data_note
+
+    def test_a_frontend_alone_does_not_imply_storing_anything(self):
+        spec = self._spec(frontend="Netlify")
+        assert not spec.security.stores_personal_data
+
+    def test_the_document_shows_both_services_on_their_own_lines(self):
+        from edu_agent.documents.render import render_document
+
+        spec = self._spec(frontend="Vercel", backend_service="Supabase")
+        body = render_document("technical_spec.md.j2", d=spec)
+        section = body.split("## 9.")[1].split("## 10.")[0]
+        assert "- 화면: Vercel" in section
+        assert "- 데이터·로그인: Supabase" in section
+
+    def test_offline_projects_are_never_asked(self):
+        """``--no-llm``-style local-only work has nowhere to host."""
+        from edu_agent.questionnaire.technical import _ask_existing_stack
+        from edu_agent.schemas.common import DocumentMeta
+        from edu_agent.schemas.technical import TechnicalSpec
+
+        spec = TechnicalSpec(
+            meta=DocumentMeta(schema_name=TechnicalSpec.SCHEMA_NAME, language="ko")
+        )
+        spec.requirements.must_run_offline_or_local = True
+
+        class Exploding:
+            def __getattr__(self, name):
+                raise AssertionError(f"asked {name} for an offline-only project")
+
+        _ask_existing_stack(Exploding(), spec)
+        assert spec.requirements.has_existing_stack is None

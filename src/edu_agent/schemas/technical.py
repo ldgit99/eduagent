@@ -113,6 +113,11 @@ class TechnicalRequirements(HarnessModel):
     needs_lms_integration: bool | None = Field(default=None)
     must_run_offline_or_local: bool | None = Field(default=None, description="로컬/오프라인 모델 필요")
     data_sensitivity: str = Field(default="", description="학생 개인정보 민감도 메모")
+    #: None until asked. True means the school already runs on something and the
+    #: agent has to fit it, which is a constraint to record, not a choice to make.
+    has_existing_stack: bool | None = Field(
+        default=None, description="이미 정해진 배포 환경이 있는가"
+    )
     selection_mode: SelectionMode = SelectionMode.RECOMMEND_ALL
 
 
@@ -201,8 +206,30 @@ class StorageSpec(HarnessModel):
 
 
 class DeploymentSpec(HarnessModel):
+    """Where this agent ends up running.
+
+    ``frontend`` and ``backend_service`` are free text and hold *product names*
+    (Vercel, Supabase, Firebase...), which is the one place in this document where
+    naming a technology first is the right thing to do: a teacher whose school
+    already runs on a stack is not choosing, they are reporting a constraint. The
+    questionnaire still asks whether such a constraint exists before asking for the
+    name, so a teacher with no stack never sees a brand (plan v2 §8).
+    """
+
     kind: DeploymentKind = DeploymentKind.LOCAL
     notes: str = ""
+    frontend: str = Field(default="", description="화면을 올릴 서비스 (예: Vercel, Netlify)")
+    backend_service: str = Field(
+        default="", description="데이터·인증을 맡길 서비스 (예: Supabase, Firebase)"
+    )
+
+    @property
+    def is_hosted(self) -> bool:
+        """True once the teacher has named somewhere other than their own machine."""
+        return bool(self.frontend or self.backend_service) or self.kind not in (
+            DeploymentKind.LOCAL,
+            DeploymentKind.DOCKER,
+        )
 
 
 class SecuritySpec(HarnessModel):
