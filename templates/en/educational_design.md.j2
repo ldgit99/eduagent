@@ -1,0 +1,119 @@
+# Educational Design
+
+> This document records **your decisions**. The harness only structures them and
+> points out what is missing.
+
+## 1. Learning context
+
+| Item | Detail |
+|---|---|
+| Target learners | {{ d.context.target_learners | orblank }} |
+| Age or grade | {{ d.context.age_or_grade | orblank }} |
+| Subject area | {{ d.context.subject | orblank }} |
+| Topic | {{ d.context.topic | orblank }} |
+| Where it is used | {{ d.context.usage_situation | orblank }} |
+| Expected number of users | {{ d.context.expected_users | orblank('undecided') }} |
+
+## 2. Learning problem
+
+### What learners struggle with now
+{{ d.problem.current_difficulties | orblank }}
+
+### The core problem this agent addresses
+{{ d.problem.core_problem | orblank }}
+
+### Limits of the current approach or support
+{{ d.problem.limitations_of_existing_support | orblank }}
+
+## 3. Learning objectives
+
+{% if d.objectives %}
+{% for o in d.objectives %}
+- **{{ o.id }}**: {{ o.statement }}{% if o.evidence %}
+  - Evidence of attainment: {{ o.evidence }}{% endif %}
+{% endfor %}
+{% else %}
+- (not yet)
+{% endif %}
+
+## 4. Learning activities
+
+{% if d.activities %}
+{% for a in d.activities | sort(attribute='order') %}
+- **{{ a.id }}**{% if a.order %} (step {{ a.order }}){% endif %}: {{ a.name }}{% if a.learner_self_directed %} — *learner works on this alone*{% endif %}
+{% if a.description %}
+  - {{ a.description }}
+{% endif %}
+{% endfor %}
+{% else %}
+- (not yet)
+{% endif %}
+
+## 5. Where the AI comes in
+
+- **Intervention points**: {{ d.ai_usage.intervention_points | join(', ') | orblank }}
+- **What the learner does before**: {{ d.ai_usage.before_ai | orblank }}
+- **What the learner does during**: {{ d.ai_usage.during_ai | orblank }}
+- **What the learner does after**: {{ d.ai_usage.after_ai | orblank }}
+
+## 6. Support expected from the AI
+
+- **Kinds of support**: {{ d.expected_support.types | map(attribute='value') | join(', ') | orblank }}
+{% if d.expected_support.other_description %}
+- **Other**: {{ d.expected_support.other_description }}
+{% endif %}
+
+### What the AI must do
+{{ d.expected_support.must_do | bullet }}
+
+### What the AI must never do
+{{ d.expected_support.must_not_do | bullet }}
+
+## 7. Tasks and reference answers
+
+> A reference answer is what lets the harness check "did the tutor hand over the
+> answer?" exactly, instead of asking a model to guess.
+
+{% if d.tasks %}
+{% for t in d.tasks %}
+### {{ t.id }}{% if t.title %} — {{ t.title }}{% endif %}
+
+{% if t.prompt_file %}
+- Task file: `{{ t.prompt_file }}`
+{% endif %}
+- Reference answer: {{ 'present' if t.reference_answer or t.answer_fragments else '**missing — leakage checking falls back to guesswork**' }}
+{% if t.common_errors %}
+- Common errors: {{ t.common_errors | join('; ') }}
+{% endif %}
+{% if t.misconceptions %}
+- Related misconceptions: {{ t.misconceptions | join('; ') }}
+{% endif %}
+{% endfor %}
+{% else %}
+- (not yet) — put the tasks in `tasks/` and run `edu-agent review 01` again.
+{% endif %}
+
+## 8. Learner-state signals
+
+> Values the agent tracks while running. Conditions in your design principles
+> ("after three attempts…") are written against these.
+
+{% if d.learner_state_signals %}
+{% for s in d.learner_state_signals %}
+- `{{ s.variable }}`: {{ s.meaning }}{% if s.how_detected %} ({{ s.how_detected }}){% endif %}
+{% endfor %}
+{% else %}
+- Using the defaults: `attempts`, `help_requests`, `stuck_turns`, `reasoning_shown`, `misconception_active`
+{% endif %}
+
+## 9. What success looks like
+
+> Stated on the **learner's** side, not the tutor's.
+
+{% if d.success_indicators %}
+{% for s in d.success_indicators %}
+- {{ s.statement }}{% if s.metric %} → `{{ s.metric }}`{% endif %}
+{% endfor %}
+{% else %}
+- (not yet)
+{% endif %}

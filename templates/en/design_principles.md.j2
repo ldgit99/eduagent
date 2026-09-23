@@ -1,0 +1,145 @@
+# Design Principles
+
+> This document is the centre of the project. It turns principles written in
+> ordinary language into **executable rules**, and makes it checkable whether
+> those rules were actually followed.
+
+## Theories and instructional strategies
+
+{{ d.theories_and_strategies | bullet }}
+
+## Answer-giving policy
+
+- **Policy**: {{ {'never': 'never give the answer', 'conditional': 'only once a condition is met', 'allowed': 'may give the answer'}[d.answer_policy.value] }}
+{% if d.answer_policy.value == 'conditional' %}
+- **Condition**: `{{ d.answer_condition }}`
+  - Before it holds, answer disclosure is blocked at runtime.
+  - Once it holds, disclosure is allowed. *Withholding forever is also penalised.*
+{% endif %}
+{% if d.answer_policy.value == 'never' %}
+> ⚠️ A tutor that keeps withholding after the learner has genuinely tried is scored
+> down for "withholding information unproductively". Consider the conditional policy.
+{% endif %}
+
+---
+
+{% for p in d.principles %}
+## {{ p.id }}. {{ p.title or p.name }}{% if not p.confirmed %} ⚠️ unconfirmed{% endif %}
+
+{% if not p.confirmed %}
+> This principle has not been confirmed yet. It stays out of the compiled agent
+> until you review the structured version in `edu-agent review 02`.
+{% endif %}
+
+### Description
+{{ p.description | orblank }}
+
+{% if p.basis %}
+### Basis
+{{ p.basis | bullet }}
+{% endif %}
+
+{% if p.guidelines %}
+### Design guidelines
+{% for g in p.guidelines %}
+- **{{ g.id }}**: {{ g.text }}
+{% endfor %}
+{% endif %}
+
+### What the AI must do
+{{ p.required_behaviors | bullet }}
+
+### What the AI must not do
+{{ p.prohibited_behaviors | bullet }}
+
+{% if p.applicability %}
+### When this applies
+{{ p.applicability }}
+{% endif %}
+
+### Executable rules
+
+{% if p.rules %}
+{% for r in p.rules %}
+#### {{ r.id }} — {{ r.name }}
+
+- **When**: {{ r.triggers | map(attribute='value') | join(', ') }}
+{% if r.ladder %}
+- **Support ladder**:
+
+| Level | Action | Condition |
+|---|---|---|
+{% for s in r.ladder %}
+| {{ s.level }} | `{{ s.label }}` | {{ s.when or 'always' }} |
+{% endfor %}
+{% endif %}
+{% if r.actions %}
+- **Actions**: {{ r.actions | map(attribute='value') | join(', ') }}
+{% endif %}
+{% if r.constraints %}
+- **Constraints**:
+{% for c in r.constraints %}
+  - {{ '**[enforced at runtime]**' if c.strength.value == 'hard' else '[guidance]' }} {{ c.text or c.kind.value }}
+{% endfor %}
+{% endif %}
+{% if r.evaluation %}
+- **Checked by**: {{ r.evaluation | join(', ') }}
+{% endif %}
+{% endfor %}
+{% else %}
+- ⚠️ No executable rules. This principle does not reach the agent's behaviour.
+{% endif %}
+
+{% endfor %}
+
+---
+
+## Learner agency
+{{ d.learner_agency.stance | orblank }}
+{% if d.learner_agency.details %}
+
+{{ d.learner_agency.details }}
+{% endif %}
+
+## Scaffolding
+{{ d.scaffolding.stance | orblank }}
+{% if d.scaffolding.details %}
+
+{{ d.scaffolding.details }}
+{% endif %}
+
+## Feedback
+{{ d.feedback.stance | orblank }}
+{% if d.feedback.details %}
+
+{{ d.feedback.details }}
+{% endif %}
+
+## Reflection and self-regulation
+{{ d.reflection.stance | orblank }}
+{% if d.reflection.details %}
+
+{{ d.reflection.details }}
+{% endif %}
+
+{% if d.criteria %}
+## Evaluation criteria
+
+| ID | Criterion | Checked by | Metric |
+|---|---|---|---|
+{% for c in d.criteria %}
+| {{ c.id }} | {{ c.statement }} | {{ 'automatic check' if c.check.value == 'deterministic' else ('AI judgement' if c.check.value == 'llm_judge' else 'human rating') }} | `{{ c.metric }}` |
+{% endfor %}
+{% endif %}
+
+{% if d.raw_user_text %}
+---
+
+## Original text (as you wrote or pasted it)
+
+> Kept verbatim so you can check that structuring did not change what you meant.
+
+```
+{{ d.raw_user_text }}
+```
+{% endif %}

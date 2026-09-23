@@ -1,0 +1,122 @@
+# Technical Specification
+
+> Technology names come last. You say **what you need**; the harness recommends
+> how to build it.
+
+## 0. Requirements (your answers)
+
+| Question | Answer |
+|---|---|
+| Does the AI need to consult a textbook or other materials? | {{ d.requirements.needs_external_materials | yesno }} |
+| Should it remember a learner's history across sessions? | {{ d.requirements.needs_persistent_learner_memory | yesno }} |
+| Will learners use it in a web browser? | {{ d.requirements.uses_web_browser | yesno }} |
+| Roughly how many people will use it? | {{ d.requirements.expected_users | orblank('undecided') }} |
+| Does the AI need to actually run code? | {{ d.requirements.needs_code_execution | yesno }} |
+| Does it need to accept images or files? | {{ d.requirements.needs_multimodal_input | yesno }} |
+| Does it need to connect to an LMS? | {{ d.requirements.needs_lms_integration | yesno }} |
+| Must it run locally, without internet? | {{ d.requirements.must_run_offline_or_local | yesno }} |
+
+{% if d.requirements.data_sensitivity %}
+- Note on personal data: {{ d.requirements.data_sensitivity }}
+{% endif %}
+
+## 1. How it runs
+
+- **{{ {'harness_runtime': 'Harness runtime (edu-agent run) — no code generated; document 04 is executed directly', 'export_cli': 'Exported as a Python CLI project', 'export_fastapi': 'Exported as a FastAPI service'}[d.execution_path.value] }}**
+
+## 2. AI provider
+
+| Item | Value |
+|---|---|
+| Provider | {{ d.ai_provider.provider.value }} |
+| Tutor model | {{ d.ai_provider.model | orblank('from EDU_AGENT_MODEL in .env') }} |
+| Judge model | {{ d.ai_provider.judge_model | orblank('same as the tutor (a different model is recommended)') }} |
+| Simulated-student model | {{ d.ai_provider.student_model | orblank('template-based (no model calls)') }} |
+| Token budget per session | {{ d.ai_provider.max_tokens_per_session or 'unlimited' }} |
+
+> API keys are never written in this document. They are read from
+> `EDU_AGENT_API_KEY` in your `.env` file.
+
+## 3. Agent architecture
+
+- **{{ 'Single agent' if d.architecture.kind.value == 'single_agent' else 'Multiple agents' }}**
+{% if d.architecture.reason %}
+- Why: {{ d.architecture.reason }}
+{% endif %}
+
+## 4. Interface
+
+- {{ d.interface.kind.value }}{% if d.interface.notes %} — {{ d.interface.notes }}{% endif %}
+
+## 5. Retrieval (RAG)
+
+- **Needed**: {{ d.data_rag.required | yesno }}
+{% if d.data_rag.required %}
+- Sources: {{ d.data_rag.sources | join(', ') | orblank }}
+- Retrieval: {{ d.data_rag.retrieval.value }}
+{% if d.data_rag.vector_store %}
+- Vector store: {{ d.data_rag.vector_store }}
+{% endif %}
+{% endif %}
+
+## 6. Memory
+
+| Scope | Used |
+|---|---|
+| Within a conversation | {{ d.memory.session_memory | yesno }} |
+| Learner progress | {{ d.memory.learner_progress | yesno }} |
+| Long-term memory | {{ d.memory.long_term_memory | yesno }} |
+
+{% if d.memory.retention_note %}
+- {{ d.memory.retention_note }}
+{% endif %}
+
+## 7. Tools
+
+{% if d.tools %}
+{% for t in d.tools %}
+### {{ t.kind.value }}
+- {{ t.description | orblank }}
+- Sandboxed: {{ t.sandboxed | yesno }}
+{% if t.permissions %}
+- Permissions: `{{ t.permissions | join('`, `') }}`
+{% endif %}
+{% endfor %}
+{% else %}
+- None (conversation alone is enough)
+{% endif %}
+
+## 8. Storage
+
+- Database: {{ d.storage.database }}
+- Traces: {{ d.storage.trace_storage }} — kept in `.edu-agent/` only, never committed.
+
+## 9. Deployment
+
+- {{ d.deployment.kind.value }}{% if d.deployment.notes %} — {{ d.deployment.notes }}{% endif %}
+
+## 10. Security and personal data
+
+| Item | Value |
+|---|---|
+| API keys via environment variables | {{ d.security.api_keys_via_env | yesno }} |
+| Stores personal data | {{ d.security.stores_personal_data | yesno }} |
+| Logs conversations | {{ d.security.logs_conversations | yesno }} |
+| Redacts personal data in logs | {{ d.security.log_redaction | yesno }} |
+| Roles | {{ d.security.roles | join(', ') }} |
+
+{% if d.security.personal_data_note %}
+- {{ d.security.personal_data_note }}
+{% endif %}
+
+## 11. Decisions and reasons
+
+{% if d.decisions %}
+| Area | Choice | Reason | Decided by |
+|---|---|---|---|
+{% for dec in d.decisions %}
+| {{ dec.area }} | {{ dec.choice }} | {{ dec.reason }} | {{ {'user': 'you', 'recommended': 'harness recommendation', 'default': 'default'}[dec.origin.value] }} |
+{% endfor %}
+{% else %}
+- (not yet)
+{% endif %}

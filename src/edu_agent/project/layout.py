@@ -39,21 +39,27 @@ class DocSlot:
     model: type[DocumentModel]
     template: str
     title_ko: str
+    title_en: str = ""
+
+    def title(self) -> str:
+        from edu_agent.i18n import get_language
+
+        return (self.title_en or self.title_ko) if get_language() == "en" else self.title_ko
 
     @property
     def label(self) -> str:
-        return f"{self.index:02d} {self.title_ko}"
+        return f"{self.index:02d} {self.title()}"
 
 
 DOC_FILES: tuple[DocSlot, ...] = (
     DocSlot(1, "educational", "01_educational_design.md", EducationalDesign,
-            "educational_design.md.j2", "교육 설계"),
+            "educational_design.md.j2", "교육 설계", "Educational design"),
     DocSlot(2, "principles", "02_design_principles.md", DesignPrinciples,
-            "design_principles.md.j2", "설계원리"),
+            "design_principles.md.j2", "설계원리", "Design principles"),
     DocSlot(3, "technical", "03_technical_spec.md", TechnicalSpec,
-            "technical_spec.md.j2", "기술 명세"),
+            "technical_spec.md.j2", "기술 명세", "Technical spec"),
     DocSlot(4, "agent", "04_agent_spec.md", AgentSpec,
-            "agent_spec.md.j2", "에이전트 명세"),
+            "agent_spec.md.j2", "에이전트 명세", "Agent spec"),
 )
 
 INPUT_DOCS: tuple[DocSlot, ...] = DOC_FILES[:3]
@@ -146,7 +152,11 @@ def find_project(start: Path | None = None) -> Project:
     raise ProjectNotFound(str(cur))
 
 
-GITIGNORE = """\
+#: Skeleton files follow the project's language. They are the first thing a student
+#: reads after ``init``, and a Korean comment block in an English project is exactly
+#: the sort of small friction that stops someone asking for help.
+GITIGNORE = {
+    "ko": """\
 # 하네스가 만드는 로컬 기록 (대화 기록이 들어 있으므로 커밋하지 않습니다)
 .edu-agent/
 
@@ -157,9 +167,23 @@ GITIGNORE = """\
 __pycache__/
 *.py[cod]
 .venv/
-"""
+""",
+    "en": """\
+# Local records the harness writes (they contain conversations — do not commit)
+.edu-agent/
 
-ENV_EXAMPLE = """\
+# API key (never commit this)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+""",
+}
+
+ENV_EXAMPLE = {
+    "ko": """\
 # 교수자가 배포한 값을 복사해 넣으세요. 이 파일(.env)은 GitHub에 올라가지 않습니다.
 EDU_AGENT_API_KEY=
 EDU_AGENT_BASE_URL=
@@ -169,7 +193,37 @@ EDU_AGENT_MODEL=
 # (같은 모델로 튜터·평가·학생을 모두 맡기면 평가가 튜터의 맹점을 그대로 물려받습니다)
 # EDU_AGENT_JUDGE_MODEL=
 # EDU_AGENT_STUDENT_MODEL=
-"""
+""",
+    "en": """\
+# Copy the values your instructor gave you. This file (.env) never reaches GitHub.
+EDU_AGENT_API_KEY=
+EDU_AGENT_BASE_URL=
+EDU_AGENT_MODEL=
+
+# Optional: a different model for the judge and the simulated student.
+# (One model playing tutor, judge and student inherits the tutor's blind spots.)
+# EDU_AGENT_JUDGE_MODEL=
+# EDU_AGENT_STUDENT_MODEL=
+""",
+}
+
+TASKS_README = {
+    "ko": """\
+# tasks
+
+에이전트가 다룰 과제와 **정답 기준**을 여기에 둡니다.
+정답이 있어야 '정답을 미리 알려줬는지'를 AI 판단 없이 정확히 검사할 수 있습니다.
+(`edu-agent review 01`에서 함께 물어봅니다.)
+""",
+    "en": """\
+# tasks
+
+Put the agent's tasks and their **reference answers** here.
+A reference answer is what lets the harness check "did the tutor give the answer
+away?" exactly, without asking a model to judge it.
+(`edu-agent review 01` asks about these.)
+""",
+}
 
 
 def create_project(root: Path, name: str, title: str = "", language: str = "ko") -> Project:
@@ -182,20 +236,14 @@ def create_project(root: Path, name: str, title: str = "", language: str = "ko")
     project.ensure_dirs()
     project.save_config()
 
+    lang = language if language in GITIGNORE else "ko"
     gi = root / ".gitignore"
     if not gi.exists():
-        gi.write_text(GITIGNORE, encoding="utf-8", newline="\n")
+        gi.write_text(GITIGNORE[lang], encoding="utf-8", newline="\n")
     envx = root / ".env.example"
     if not envx.exists():
-        envx.write_text(ENV_EXAMPLE, encoding="utf-8", newline="\n")
+        envx.write_text(ENV_EXAMPLE[lang], encoding="utf-8", newline="\n")
     keep = project.tasks_dir / "README.md"
     if not keep.exists():
-        keep.write_text(
-            "# tasks\n\n"
-            "에이전트가 다룰 과제와 **정답 기준**을 여기에 둡니다.\n"
-            "정답이 있어야 '정답을 미리 알려줬는지'를 AI 판단 없이 정확히 검사할 수 있습니다.\n"
-            "(`edu-agent review 01`에서 함께 물어봅니다.)\n",
-            encoding="utf-8",
-            newline="\n",
-        )
+        keep.write_text(TASKS_README[lang], encoding="utf-8", newline="\n")
     return project

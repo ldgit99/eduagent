@@ -1,0 +1,201 @@
+# Agent Specification
+
+> This document is **both a human-readable design and the thing that runs**.
+> `edu-agent run` interprets this file directly.
+> You may edit it by hand, but editing documents 01–03 and running
+> `edu-agent compile` again is safer.
+
+## 1. Purpose
+{{ d.purpose | orblank }}
+
+## 2. Target learner
+{{ d.target_learner | orblank }}
+
+## 3. Learning goals
+{{ d.learning_goals | bullet }}
+
+## 4. Agent role
+{{ d.agent_role | orblank }}
+
+## 5. Core behaviours
+
+{% for b in d.behaviors %}
+### {{ b.id }} — {{ b.name }}
+
+- **When**: {{ b.triggers | map(attribute='value') | join(', ') }}
+{% if b.ladder %}
+
+| Level | Action | Condition |
+|---|---|---|
+{% for s in b.ladder %}
+| {{ s.level }} | `{{ s.label }}` | {{ s.when or 'always' }} |
+{% endfor %}
+{% endif %}
+{% if b.actions %}
+- **Actions**: {{ b.actions | map(attribute='value') | join(', ') }}
+{% endif %}
+{% if b.evaluation %}
+- **Checked by**: {{ b.evaluation | join(', ') }}
+{% endif %}
+{% else %}
+- (none)
+{% endfor %}
+
+## 6. Interaction flow
+
+{% for p in d.phases %}
+### {{ loop.index }}. {{ p.title }}
+- Goal: {{ p.goal | orblank }}
+- Actions in this phase: {{ p.allowed_actions | map(attribute='value') | join(', ') | orblank }}
+{% if p.enter_when %}
+- Enter when: `{{ p.enter_when }}`
+{% endif %}
+{% if p.exit_when %}
+- Leave when: `{{ p.exit_when }}`
+{% endif %}
+{% else %}
+- (none)
+{% endfor %}
+
+## 7. Learner state model
+
+> Values tracked while the agent runs. Conditions such as `attempts >= 3` read them.
+
+| Variable | Meaning | Increased by | Reset by |
+|---|---|---|---|
+{% for v in d.state_variables %}
+| `{{ v.name }}` | {{ v.description }} | {{ (v.increment_on + v.set_true_on) | map(attribute='value') | join(', ') | orblank('—') }} | {{ (v.reset_on + v.set_false_on) | map(attribute='value') | join(', ') | orblank('—') }} |
+{% endfor %}
+
+## 8. Scaffolding policy
+{{ d.scaffolding_policy | orblank }}
+
+## 9. Feedback policy
+{{ d.feedback_policy | orblank }}
+
+## 10. Learner agency policy
+{{ d.agency_policy | orblank }}
+
+## 11. Policy gates (enforced at runtime)
+
+> These rules are checked **before the model's response reaches the learner**.
+> A violation triggers regeneration; repeated failure falls back to a safe
+> response, and the whole decision is recorded.
+
+{% if d.gates %}
+| ID | Rule | Kind | Principle |
+|---|---|---|---|
+{% for g in d.gates %}
+| {{ g.id }} | {{ g.constraint.text or g.message }} | `{{ g.constraint.kind.value }}` | {{ g.principle_id or '—' }} |
+{% endfor %}
+{% else %}
+- (none) — with no hard constraints, nothing is enforced while the agent runs.
+{% endif %}
+
+## 12. Tools
+
+{% if d.tools %}
+{% for t in d.tools %}
+- **{{ t.name }}**: {{ t.description | orblank }}{% if t.permissions %} (permissions: `{{ t.permissions | join('`, `') }}`){% endif %}{% if t.sandboxed %} · sandboxed{% endif %}{% if t.when_allowed %}
+  - Allowed when: `{{ t.when_allowed }}` — earlier calls are blocked at runtime and recorded.{% endif %}
+{% endfor %}
+{% else %}
+- none
+{% endif %}
+
+## 13. Memory
+
+- Within a conversation: {{ d.memory.session_memory | yesno }}
+- Learner progress: {{ d.memory.learner_progress | yesno }}
+- Long-term memory: {{ d.memory.long_term_memory | yesno }}
+- Redact personal data in logs: {{ d.memory.redact_pii | yesno }}
+{% if d.memory.what_is_stored %}
+{{ d.memory.what_is_stored | bullet }}
+{% endif %}
+
+## 14. Safety and ethics
+
+### General
+{{ d.safety.general_rules | bullet }}
+
+### Pedagogical safety
+> Giving the answer away, reinforcing a misconception, abandoning scaffolding and
+> sycophancy (caving to a claim the learner insists on) are treated as safety
+> problems in an educational context.
+
+{{ d.safety.pedagogical_rules | bullet }}
+
+- Personal data: {{ d.safety.pii_action }}
+{% if d.safety.escalation %}
+- Hand over to a person: {{ d.safety.escalation }}
+{% endif %}
+
+## 15. System prompt
+
+> What the model is actually told at run time. `edu-agent run --show-prompt`
+> prints the same text.
+
+```text
+{{ d.system_prompt }}
+```
+
+## 16. Evaluation criteria
+
+| ID | Criterion | Checked by | Metric |
+|---|---|---|---|
+{% for c in d.criteria %}
+| {{ c.id }} | {{ c.statement }} | {{ 'automatic check' if c.check.value == 'deterministic' else ('AI judgement' if c.check.value == 'llm_judge' else 'human rating') }} | `{{ c.metric }}` |
+{% endfor %}
+
+## 17. Test scenarios
+
+{% for s in d.scenarios %}
+### {{ s.id }} — {{ s.name }}
+- Student: `{{ s.persona_id }}` · up to {{ s.max_turns }} turns · {{ s.seeds }} run(s)
+{% if s.criteria %}
+- Criteria checked: {{ s.criteria | join(', ') }}
+{% endif %}
+{% if s.opening %}
+- Opening line: "{{ s.opening }}"
+{% endif %}
+{% if s.turns %}
+- Script:
+{% for t in s.turns %}
+{% if t.text %}
+  {{ loop.index }}. "{{ t.text }}"{% if t.forbid_actions %} — forbidden: {{ t.forbid_actions | map(attribute='value') | join(', ') }}{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% else %}
+- (none)
+{% endfor %}
+
+## 18. Judge calibration
+
+- Turns for a human to rate: {{ d.calibration.n_samples }}
+- Agreement threshold: κ ≥ {{ d.calibration.min_agreement }}
+{% if d.calibration.dimensions %}
+- Items covered: {{ d.calibration.dimensions | join(', ') }}
+{% endif %}
+
+> AI judgement stays provisional until it has been compared with human ratings.
+> Run `edu-agent calibrate`.
+
+## 19. Traceability
+
+> Shows which behaviours, gates, checks and scenarios each design principle
+> produced. A principle that does not reach a scenario is **never verified**.
+
+| Principle | Guidelines | Behaviours | Gates | Criteria | Scenarios | Complete |
+|---|---|---|---|---|---|---|
+{% for t in d.traceability %}
+| {{ t.principle_id }} | {{ t.guideline_ids | join(', ') | orblank('—') }} | {{ t.behavior_ids | join(', ') | orblank('—') }} | {{ t.gate_ids | join(', ') | orblank('—') }} | {{ t.criterion_ids | join(', ') | orblank('—') }} | {{ t.scenario_ids | join(', ') | orblank('—') }} | {{ '✔' if t.complete else '⚠️' }} |
+{% endfor %}
+
+{% if d.compiler_notes %}
+---
+
+## Compiler notes
+
+{{ d.compiler_notes | bullet }}
+{% endif %}
