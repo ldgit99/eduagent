@@ -7,6 +7,8 @@ template that silently falls back without anyone noticing.
 
 from __future__ import annotations
 
+import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -117,6 +119,107 @@ def test_unknown_key_returns_itself(korean):
     assert t("nothing.like.this") == "nothing.like.this"
 
 
+# --- what has actually been migrated --------------------------------------
+#: Modules whose user-facing text lives entirely in the catalogues. Adding a
+#: module here is the commitment; the test below is what keeps it true.
+#:
+#: Not on this list, deliberately:
+#:
+#: * ``runtime/triggers.py`` and ``simulator/renderer.py`` hold *locale content* —
+#:   Korean PII patterns, Korean phrasings a simulated learner uses. An English
+#:   course needs these patterns *as well*, not instead, so translating them would
+#:   quietly delete detection rules. See ``docs/i18n.md``.
+#: * ``cli.py`` help text is bound by Typer at import time, before ``--lang`` is
+#:   parsed. That needs a different mechanism, not a different catalogue.
+MIGRATED_MODULES = [
+    "ui.py",
+    "questionnaire/principles.py",
+]
+
+_HANGUL = re.compile(r"[가-힣]")
+
+
+def _docstrings(tree: ast.AST) -> set[int]:
+    holders = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+    found = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, holders):
+            continue
+        body = getattr(node, "body", None)
+        first = body[0] if body else None
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            found.add(id(first.value))
+    return found
+
+
+@pytest.mark.parametrize("module", MIGRATED_MODULES)
+def test_migrated_modules_hold_no_korean_of_their_own(module):
+    """A migrated module may *explain* itself in Korean, but not *speak* Korean.
+
+    Docstrings and comments are for whoever maintains the file. Every other
+    string literal is something a person on the other side of the screen reads,
+    and it belongs in ``i18n/``, where it can be translated and where a teacher
+    can reword it without opening Python.
+    """
+    import edu_agent
+
+    path = Path(edu_agent.__file__).parent / module
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    docstrings = _docstrings(tree)
+
+    offenders = [
+        f"line {node.lineno}: {node.value[:60]!r}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in docstrings
+        and _HANGUL.search(node.value)
+    ]
+    assert not offenders, f"{module} still speaks Korean directly:\n  " + "\n  ".join(offenders)
+
+
+def test_the_questionnaire_asks_in_the_current_language(english):
+    """Choice lists must be built per call, not at import.
+
+    ``set_language`` runs when the project is loaded, which is long after this
+    module is imported — so a module-level ``Choice(... t(...) ...)`` would pin
+    whichever language happened to be current at import time.
+    """
+    from edu_agent.questionnaire.principles import (
+        _answer_conditions,
+        _escalation_choices,
+        _theory_choices,
+    )
+
+    assert "Scaffolding and fading" in [c.label for c in _theory_choices()]
+    assert not any(_HANGUL.search(c.label) for c in _answer_conditions())
+    assert not any(_HANGUL.search(str(c.value)) for c in _escalation_choices())
+
+
+def test_the_action_menu_has_an_english_half():
+    """The action descriptions go into the prompt, so they follow the project."""
+    from edu_agent.runtime.prompt import action_help
+
+    assert action_help("ko").keys() == action_help("en").keys()
+    assert not any(_HANGUL.search(v) for v in action_help("en").values())
+    assert _HANGUL.search(action_help("ko")["give_direct_answer"])
+
+
+def test_the_action_menu_follows_the_current_language(english):
+    """Regression: the resolution used to sit behind ``lru_cache``.
+
+    With the default argument inside the cache key, the first call of the process
+    pinned the language and ``--lang en`` silently produced a Korean prompt.
+    """
+    from edu_agent.runtime.prompt import action_help
+
+    assert not _HANGUL.search(action_help()["give_direct_answer"])
+
+
 # --- templates ------------------------------------------------------------
 class TestTemplateResolution:
     @pytest.mark.parametrize("template", TEMPLATES)
@@ -202,3 +305,36 @@ class TestEnglishProject:
         assert slot_for("01").title() == "Educational design"
         set_language("ko")
         assert slot_for("01").title() == "교육 설계"
+
+
+# --- principle library ----------------------------------------------------
+class TestPrincipleLibrary:
+    """The library is cited scholarship, so it is translated as content, not code.
+
+    Only the *mechanism* is in place here: ``library/<lang>/``, resolved the way
+    templates are. There is no English library yet, and falling back to Korean is
+    the intended behaviour until somebody writes one.
+    """
+
+    def test_the_korean_library_loads(self, korean):
+        from edu_agent.principles.library_loader import library_entries
+
+        entries = library_entries()
+        assert len(entries) == 10
+        assert all(e.sources for e in entries), "every entry must cite something"
+
+    def test_an_untranslated_language_falls_back_rather_than_emptying(self, english):
+        from edu_agent.principles.library_loader import library_entries
+
+        assert [e.library_id for e in library_entries()] == [
+            e.library_id for e in library_entries("ko")
+        ]
+
+    def test_ids_resolve_across_languages(self):
+        """A project records ``library_id``; it must still resolve if the reader
+        opens the project in the other language."""
+        from edu_agent.principles.library_loader import find_entry
+
+        assert find_entry("lib.reasoning_first", "ko") is not None
+        assert find_entry("lib.reasoning_first", "en") is not None
+        assert find_entry("lib.no.such.thing", "ko") is None

@@ -25,3 +25,23 @@ ko:
   refuse_and_explain: 할 수 없는 이유를 설명한다
   summarize_progress: 지금까지의 진행을 정리한다
   escalate_to_human: 선생님께 물어보도록 안내한다
+
+en:
+  ask_for_reasoning: ask what the learner is thinking right now, and how
+  ask_metacognitive_question: ask a question that makes them look at their own thinking
+  ask_clarifying_question: ask back, to understand the situation better
+  provide_directional_hint: point at where to look (not at what is wrong)
+  provide_conceptual_hint: name the concept involved
+  provide_partial_example: give a partly filled-in example
+  provide_worked_example: walk through a similar problem
+  provide_detailed_explanation: explain in full
+  give_direct_answer: give the answer
+  give_process_feedback: respond to the strategy and the process they used
+  give_outcome_feedback: say whether the result is right
+  acknowledge_and_encourage: acknowledge and encourage
+  prompt_reflection: ask them to explain how they solved it
+  prompt_self_explanation: ask them to explain the concept in their own words
+  redirect_to_task: answer briefly and return to the task
+  refuse_and_explain: explain why this cannot be done
+  summarize_progress: sum up where they have got to
+  escalate_to_human: tell them to ask their teacher

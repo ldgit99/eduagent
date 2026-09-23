@@ -19,6 +19,20 @@ common:
   next_step: "다음 할 일"
   none: "없음"
 
+# 질문 하나하나에 붙는 안내문. 화면에 가장 자주 나오는 문장들이라
+# 여기가 번역되지 않으면 나머지를 번역해도 한국어 화면으로 보인다.
+ui:
+  enter_for: "엔터만 누르면: {default}"
+  multiline: "여러 줄로 쓸 수 있습니다. 다 쓰면 빈 줄에서 엔터를 두 번 누르세요."
+  multi_help: "쉼표로 여러 개를 고를 수 있습니다 (예: 1,3,5). 전체는 'all', 없으면 엔터."
+  all_word: "전체"
+  answer_needed: "답을 입력해 주세요."
+  pick_one: "하나 이상 선택해 주세요."
+  number_needed: "숫자를 입력해 주세요."
+  minimum: "{minimum} 이상의 숫자를 입력해 주세요."
+  try_command: "[bold]{command}[/bold] 을(를) 실행해 보세요."
+  here: "현재 위치: {path}"
+
 status:
   title: "프로젝트 상태"
   doc_missing: "없음"
@@ -75,15 +89,129 @@ review:
   ok: "{doc} 확인 완료"
   no_llm: "AI 도움 없이 진행합니다 (--no-llm). 구조화는 직접 입력해야 합니다."
 
+# 02 설계원리 질문지. 이 하네스에서 가장 길고 가장 중요한 대화이고,
+# 선택지의 '값'이 그대로 문서와 시스템 프롬프트에 들어간다 — 그래서
+# 라벨뿐 아니라 값도 여기에 있다.
 principles:
-  library_title: "설계원리 라이브러리"
-  library_help: "문헌 근거가 있는 원리입니다. 선택한 뒤 자유롭게 수정할 수 있습니다."
-  pick: "추가할 원리의 번호를 쉼표로 입력하세요 (예: 1,3,5)"
-  own: "직접 작성하거나 붙여넣기"
-  structuring: "자연어 원리를 실행 가능한 규칙으로 바꾸는 중…"
-  structure_title: "이 원리를 이렇게 실행하려고 합니다"
-  structure_confirm: "이 규칙이 의도와 맞습니까?"
-  unconfirmed: "확인되지 않은 원리는 컴파일에 포함되지 않습니다."
+  title: "교육적 설계원리"
+  subtitle: "여기서 정한 내용이 에이전트의 실제 행동 규칙과 검사 기준이 됩니다."
+
+  theories:
+    step: "[bold]1/5 · 적용 이론 및 교수학습전략[/bold]"
+    lead: "이 에이전트의 설계가 어떤 이론이나 전략에 기대고 있는지 고르세요."
+    question: "어떤 이론이나 교수학습전략을 적용하시겠습니까?"
+    hint: "여기서 고른 것이 문서의 첫 절이 되고, 각 설계원리의 근거가 됩니다."
+    add: "직접 추가 {n} (없으면 엔터)"
+    empty: "비워 두어도 진행되지만, 근거 없는 원리는 나중에 검토하기 어렵습니다."
+    scaffolding: "스캐폴딩과 점진적 소거(fading)"
+    srl: "자기조절학습(SRL) — 계획·점검·성찰"
+    socratic: "소크라테스식 질문법"
+    cognitive_load: "인지부하 이론"
+    formative: "형성평가와 피드백 (지시적 + 메타인지 혼합)"
+    constructivism: "구성주의 / 발견학습"
+    misconception: "오개념 진단과 개념변화"
+    collaborative: "협력학습 · 동료 설명"
+
+  answer:
+    step: "[bold]2/5 · 정답 제공 정책[/bold]"
+    question: "AI가 학습자에게 정답을 바로 제공해도 됩니까?"
+    hint: "이 답이 스캐폴딩 사다리와 정답 게이트의 기본값을 정합니다."
+    never: "제공하지 않음"
+    conditional: "일정 조건에서만 제공  ({recommended})"
+    allowed: "제공 가능"
+    never_warning: "'절대 제공하지 않음'을 고르셨습니다."
+    never_note: "연구에서는 '정답을 너무 빨리 주는 것'과 '학습자가 충분히 시도한 뒤에도 정보를 보류하는 것'을 둘 다 문제로 봅니다. 후자는 학습자를 막다른 길에 두는 것입니다."
+    reconsider: "조건부 제공으로 바꿔 볼까요?"
+    when_question: "그렇다면 '언제' 제공해도 됩니까?"
+    when_hint: "이 조건은 실행 중에 자동으로 검사되어, 조건 전에는 정답이 차단됩니다."
+    when_attempts_3: "스스로 3번 이상 시도한 뒤"
+    when_attempts_2: "스스로 2번 이상 시도한 뒤"
+    when_attempts_or_stuck: "3번 시도했거나 2턴 이상 막혀 있을 때"
+    when_reasoning: "자기 생각을 말하고 2번 이상 시도한 뒤"
+    custom: "직접 입력"
+    custom_vars: "사용할 수 있는 값: attempts, stuck_turns, help_requests, reasoning_shown"
+    custom_example: "예: attempts >= 4  ·  reasoning_shown == true and stuck_turns >= 1"
+    custom_prompt: "조건을 입력하세요"
+
+  library:
+    step: "[bold]3/5 · 설계원리 라이브러리[/bold]"
+    lead: "문헌 근거가 있는 원리입니다. 고른 뒤 자유롭게 수정할 수 있습니다."
+    question: "어떤 원리를 사용하시겠습니까?"
+    hint: "각 원리에는 근거 문헌이 붙어 있습니다. 나중에 문서에서 확인할 수 있습니다."
+    exhausted: "라이브러리의 원리를 이미 모두 가져왔습니다."
+    imported: "{n}개의 원리를 가져왔습니다. 다음 단계에서 하나씩 확인합니다."
+    why_it_matters: "왜 중요한가:"
+    sources: "근거:"
+
+  own:
+    step: "[bold]4/5 · 직접 작성한 설계원리[/bold]"
+    lead: "문헌 분석으로 도출한 원리가 있다면 가져오세요. 원문은 그대로 보관됩니다."
+    question: "직접 작성한 설계원리가 있나요?"
+    hint: "파일로 두면 원문이 그대로 보관되고, 고친 뒤 다시 불러올 수 있습니다."
+    from_file: "Markdown 파일에서 불러오기"
+    paste: "여기에 붙여넣기"
+    none: "없음"
+    paste_prompt: "설계원리를 입력하세요 (여러 개면 줄바꿈으로 구분)"
+    path_prompt: "파일 경로 (예: principles.md, 취소하려면 엔터)"
+    file_read: "{name} 을 읽었습니다 ({lines}줄)."
+    nothing_found: "이 문서에서 설계원리로 읽을 만한 문장을 찾지 못했습니다."
+    nothing_found_hint: "원문은 문서에 그대로 보관됩니다. 제목(##)이나 목록(-)으로 구분해 주면 잘 읽습니다."
+    read_count: "{n}개의 원리를 읽었습니다."
+    and_more: "… 외 {n}개"
+    confirm_structuring: "이대로 구조화할까요?"
+    declined: "원문만 저장했습니다. 파일을 고친 뒤 다시 실행하세요."
+    no_llm: "AI 도움 없이 실행 중입니다 (--no-llm). 원문만 저장하고 구조화는 건너뜁니다."
+    no_llm_hint: "나중에 API 키를 설정한 뒤 'edu-agent review 02' 를 다시 실행하세요."
+    structuring: "구조화 중: {statement}"
+    structuring_failed: "이 원리를 자동으로 구조화하지 못했습니다. 문서에서 직접 규칙을 적어 주세요."
+    capped: "{total}개 중 {shown}개만 구조화했습니다. 나머지는 원문에 남아 있으니 다시 실행하면 이어서 다룰 수 있습니다."
+
+  confirm:
+    step: "[bold]5/5 · 규칙 확인[/bold]"
+    lead: "각 원리가 '어떤 상황에서 무엇을 하고, 무엇을 하지 않는지'로 바뀌었습니다. 의도와 맞는지 확인해 주세요. 확인하지 않으면 컴파일에 포함되지 않습니다."
+    question: "이 규칙이 의도와 맞습니까?"
+    accept: "맞습니다"
+    drop: "이 원리는 빼겠습니다"
+    edit: "설명을 고치겠습니다"
+    edit_prompt: "설명을 다시 적어 주세요"
+    accepted: "{id} 확인됨"
+    dropped: "{id} 를 제외했습니다."
+
+  render:
+    no_description: "(설명 없음)"
+    always: "언제나"
+    when: "[bold]이럴 때:[/bold] {triggers}"
+    then: "[bold]이렇게 합니다:[/bold]"
+    step_line: "  {level}단계 → {label}{condition}"
+    actions: "[bold]행동:[/bold] {actions}"
+    hard: "[bold]실행 중 강제되는 규칙:[/bold]"
+    soft: "[bold]안내문에 들어가는 지침:[/bold]"
+    no_rules: "[yellow]실행 규칙이 없습니다. 이 원리는 에이전트 행동으로 이어지지 않습니다.[/yellow]"
+
+  cross_cutting:
+    lead: "마지막으로, 네 가지 방침을 한 문장씩 적어 주세요. 비워 두면 기본 문장이 쓰입니다."
+    agency: "학습자 주도성: 학습자에게 무엇을 남겨 두시겠습니까?"
+    scaffolding: "스캐폴딩: 도움은 어떻게 조절되어야 합니까?"
+    feedback: "피드백: 어떤 피드백이 좋은 피드백입니까?"
+    reflection: "성찰: 학습자는 언제 무엇을 돌아봐야 합니까?"
+
+  escalation:
+    lead: "에이전트가 혼자 감당하면 안 되는 상황도 설계에 들어갑니다."
+    question: "언제 학습자를 선생님에게 넘겨야 합니까?"
+    hint: "이 문장은 에이전트의 안전 정책이 되어 시스템 프롬프트에 들어갑니다."
+    custom_prompt: "어떤 상황에서 넘겨야 하는지 한 문장으로 적어 주세요"
+    no_progress_label: "여러 번 도와도 진전이 없을 때"
+    no_progress: "여러 번 도와도 학습자가 진전을 보이지 않으면 선생님께 물어보도록 안내합니다."
+    distress_label: "학습자가 정서적으로 힘들어 보일 때"
+    distress: "학습자가 좌절이나 불안을 강하게 드러내면 대화를 이어가기보다 선생님께 알리도록 안내합니다."
+    both_label: "1번과 2번 모두 ({recommended})"
+    both: "여러 번 도와도 진전이 없거나 학습자가 정서적으로 힘들어 보이면 선생님께 물어보도록 안내합니다."
+
+  summary:
+    heading: "[bold]설계원리[/bold] {confirmed}개 확인됨 / 전체 {total}개"
+    line: "  {mark} {id} {title} — 규칙 {rules}개, 실행 중 강제 {gates}개"
+    answer_policy: "[bold]정답 제공[/bold] {policy}"
+    criteria: "[bold]평가 기준[/bold] {n}개"
 
 compile:
   running: "에이전트 명세를 만드는 중…"

@@ -113,7 +113,7 @@ def render_abort(exc: Abort) -> None:
     if exc.hint:
         err_console.print(f"  [dim]{exc.hint}[/dim]")
     if exc.command:
-        err_console.print(f"  [bold]{exc.command}[/bold] 을(를) 실행해 보세요.")
+        err_console.print("  " + t("ui.try_command", command=exc.command))
 
 
 # --- input ----------------------------------------------------------------
@@ -132,9 +132,9 @@ def ask_text(question: str, *, default: str = "", allow_empty: bool = True,
     if hint:
         why(hint)
     if default:
-        note(f"엔터만 누르면: {default}")
+        note(t("ui.enter_for", default=default))
     if multiline:
-        note("여러 줄로 쓸 수 있습니다. 다 쓰면 빈 줄에서 엔터를 두 번 누르세요.")
+        note(t("ui.multiline"))
         lines: list[str] = []
         while True:
             line = _input("  ")
@@ -153,7 +153,7 @@ def ask_text(question: str, *, default: str = "", allow_empty: bool = True,
         if not raw:
             if default or allow_empty:
                 return default
-            fail("답을 입력해 주세요.")
+            fail(t("ui.answer_needed"))
             continue
         return raw
 
@@ -207,7 +207,7 @@ def ask_multi(
         if choice.hint:
             line += f"  [dim]— {choice.hint}[/dim]"
         console.print(line)
-    note("쉼표로 여러 개를 고를 수 있습니다 (예: 1,3,5). 전체는 'all', 없으면 엔터.")
+    note(t("ui.multi_help"))
 
     keys = {c.key.lower(): c for c in choices}
     while True:
@@ -217,9 +217,9 @@ def ask_multi(
         if not raw:
             if allow_empty:
                 return []
-            fail("하나 이상 선택해 주세요.")
+            fail(t("ui.pick_one"))
             continue
-        if raw in {"all", "a", "전체"}:
+        if raw in {"all", "a", t("ui.all_word")}:
             return [c.value if c.value is not None else c.key for c in choices]
         picked = [p.strip() for p in raw.replace(" ", ",").split(",") if p.strip()]
         if all(p in keys for p in picked):
@@ -248,7 +248,7 @@ def ask_int(question: str, *, default: int | None = None, minimum: int = 1,
     if hint:
         why(hint)
     if default is not None:
-        note(f"엔터만 누르면: {default}")
+        note(t("ui.enter_for", default=default))
     while True:
         raw = _input("  > ").strip()
         if raw in {"/quit", "/q", "/exit", "s"}:
@@ -258,10 +258,10 @@ def ask_int(question: str, *, default: int | None = None, minimum: int = 1,
         try:
             value = int(raw)
         except ValueError:
-            fail("숫자를 입력해 주세요.")
+            fail(t("ui.number_needed"))
             continue
         if value < minimum:
-            fail(f"{minimum} 이상의 숫자를 입력해 주세요.")
+            fail(t("ui.minimum", minimum=minimum))
             continue
         return value
 

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import yaml
 
+from edu_agent.i18n import get_language
 from edu_agent.runtime.state import LearnerState
 from edu_agent.schemas.agent import AgentSpec, Phase
 from edu_agent.schemas.educational import TaskItem
@@ -51,15 +52,23 @@ TURN_SCHEMA: dict[str, object] = {
 
 
 @functools.lru_cache(maxsize=4)
-def action_help(lang: str = "ko") -> dict[str, str]:
+def _action_help(lang: str) -> dict[str, str]:
+    path = Path(__file__).parent / "actions.yaml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return dict(data.get(lang) or data.get("ko") or {})
+
+
+def action_help(lang: str = "") -> dict[str, str]:
     """One line per action, for the menu the model is given each turn.
 
     In YAML rather than in code: the names are schema, but the explanations are
     prompt wording, and tuning prompt wording should not look like a schema change.
+
+    The language is resolved here rather than inside the cache, because a default
+    argument is part of the cache key: with ``lru_cache`` on the resolution itself,
+    the first call would pin the language for the rest of the process.
     """
-    path = Path(__file__).parent / "actions.yaml"
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return dict(data.get(lang) or data.get("ko") or {})
+    return _action_help(lang or get_language())
 
 
 def build_system_prompt(spec: AgentSpec) -> str:

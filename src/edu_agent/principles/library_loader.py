@@ -14,6 +14,7 @@ from typing import Any
 import yaml
 from pydantic import Field
 
+from edu_agent.i18n import get_language
 from edu_agent.schemas.common import HarnessModel, IdPrefix, make_id, next_id
 from edu_agent.schemas.evaluation import Dimension
 from edu_agent.schemas.principles import (
@@ -26,6 +27,7 @@ from edu_agent.schemas.principles import (
 )
 
 _LIB_DIR = Path(__file__).parent / "library"
+_DEFAULT_LANG = "ko"
 
 
 class LibraryCriterion(HarnessModel):
@@ -65,23 +67,37 @@ class LibraryEntry(HarnessModel):
         return first or self.title
 
 
-@functools.lru_cache(maxsize=1)
-def load_library() -> list[LibraryEntry]:
-    """Load every ``*.yaml`` under ``principles/library``."""
+@functools.lru_cache(maxsize=4)
+def load_library(lang: str = _DEFAULT_LANG) -> list[LibraryEntry]:
+    """Load every ``*.yaml`` under ``principles/library/<lang>``.
+
+    Falls back to Korean when a language has no library of its own, the same way
+    :mod:`edu_agent.documents.render` falls back for templates — a half-translated
+    harness should still hand a teacher a usable set of cited principles.
+
+    A translated library must reuse the Korean ``library_id`` values: they are
+    written into the project document, and :func:`find_entry` resolves them
+    afterwards, possibly in the other language.
+    """
+    directory = _LIB_DIR / lang
+    if not directory.is_dir():
+        directory = _LIB_DIR / _DEFAULT_LANG
     entries: list[LibraryEntry] = []
-    for path in sorted(_LIB_DIR.glob("*.yaml")):
+    for path in sorted(directory.glob("*.yaml")):
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for raw in data.get("principles", []):
             entries.append(LibraryEntry.model_validate(raw))
     return entries
 
 
-def library_entries() -> list[LibraryEntry]:
-    return load_library()
+def library_entries(lang: str = "") -> list[LibraryEntry]:
+    return load_library(lang or get_language())
 
 
-def find_entry(library_id: str) -> LibraryEntry | None:
-    return next((e for e in load_library() if e.library_id == library_id), None)
+def find_entry(library_id: str, lang: str = "") -> LibraryEntry | None:
+    return next(
+        (e for e in library_entries(lang) if e.library_id == library_id), None
+    )
 
 
 def to_principle(entry: LibraryEntry, used_ids: set[str]) -> tuple[DesignPrinciple, list[EvaluationCriterion]]:
