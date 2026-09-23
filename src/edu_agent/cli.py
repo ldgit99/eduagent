@@ -594,6 +594,10 @@ def run(
     mock: Annotated[bool, typer.Option("--mock", help="가짜 모델로 시험 실행합니다")] = False,
     show_prompt: Annotated[bool, typer.Option("--show-prompt", help="시스템 프롬프트를 보여줍니다")] = False,
     turns: Annotated[int, typer.Option("--turns", help="페르소나 대화의 최대 턴 수")] = 8,
+    web: Annotated[bool, typer.Option("--web", help="브라우저에서 대화합니다")] = False,
+    port: Annotated[int, typer.Option("--port", help="--web 이 쓸 포트 (0 = 자동)")] = 7860,
+    open_browser: Annotated[bool, typer.Option("--open/--no-open",
+                                               help="--web 실행 시 브라우저를 엽니다")] = True,
 ) -> None:
     """에이전트와 직접 대화합니다. 04 문서를 그대로 실행합니다."""
     from edu_agent.runtime.loop import AgentRuntime
@@ -618,11 +622,17 @@ def run(
         _run_with_persona(project, spec, provider, persona, task, turns, mock)
         return
 
+    if web:
+        _run_web(project, spec, provider, task, port=port, open_browser=open_browser)
+        return
+
     ui.header(t("run.banner", name=project.config.name))
     ui.note(t("run.privacy"))
     ui.say()
 
-    runtime = AgentRuntime(spec=spec, provider=provider, task=task)
+    runtime = AgentRuntime(
+        spec=spec, provider=provider, task=task, tools=_tool_runtime(project, spec, task)
+    )
     runtime.trace.run_id = new_run_id("chat")
 
     while True:
@@ -649,6 +659,61 @@ def run(
     saved = save_session(paths, runtime.trace)
     ui.say()
     ui.ok(t("run.ended", path=saved))
+
+
+def _run_web(project, spec, provider, task, *, port: int, open_browser: bool) -> None:
+    """Serve the chat in a browser until Ctrl+C, then save what was said."""
+    import webbrowser
+
+    from edu_agent.runtime.loop import AgentRuntime
+    from edu_agent.storage.jsonl import RunPaths, new_run_id, save_session
+    from edu_agent.web import ChatServer, ChatSession
+
+    run_id = new_run_id("web")
+
+    def build_runtime() -> AgentRuntime:
+        runtime = AgentRuntime(
+            spec=spec, provider=provider, task=task, tools=_tool_runtime(project, spec, task)
+        )
+        runtime.trace.run_id = run_id
+        return runtime
+
+    session = ChatSession(
+        build_runtime=build_runtime,
+        title=project.config.title or project.config.name,
+        role=spec.agent_role or "",
+        lang=project.config.language,
+    )
+    try:
+        server = ChatServer(session, port=port)
+    except OSError as exc:
+        ui.die(
+            t("run.web_port_busy", port=port),
+            hint=str(exc),
+            command="edu-agent run --web --port 0",
+        )
+
+    ui.header(t("run.banner", name=project.config.name))
+    ui.ok(t("run.web_ready", url=server.url))
+    ui.note(t("run.privacy"))
+    ui.note(t("run.web_stop"))
+    if open_browser:
+        webbrowser.open(server.url)
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown()
+
+    paths = RunPaths(project.runs_dir, run_id)
+    saved = [save_session(paths, trace) for trace in session.finished_traces()]
+    ui.say()
+    if saved:
+        ui.ok(t("run.ended", path=paths.dir))
+    else:
+        ui.info(t("run.web_nothing"))
 
 
 def _run_with_persona(project, spec, provider, persona_id, task, turns, mock) -> None:

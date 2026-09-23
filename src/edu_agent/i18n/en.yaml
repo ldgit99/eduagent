@@ -99,6 +99,10 @@ run:
   gate_blocked: "[a policy gate revised the response: {reason}]"
   fallback: "[fell back to a safe response]"
   ended: "Conversation ended. Log: {path}"
+  web_ready: "Open it in your browser: {url}"
+  web_stop: "Press Ctrl+C in this window to stop. The conversation is saved then."
+  web_port_busy: "Port {port} is not available — another program seems to be using it."
+  web_nothing: "Nothing was said, so nothing was saved."
 
 test:
   running: "Talking to simulated learners… ({done}/{total})"

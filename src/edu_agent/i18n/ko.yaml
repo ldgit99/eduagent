@@ -99,6 +99,10 @@ run:
   gate_blocked: "[정책 게이트가 응답을 수정했습니다: {reason}]"
   fallback: "[안전한 응답으로 대체했습니다]"
   ended: "대화를 마쳤습니다. 기록: {path}"
+  web_ready: "브라우저에서 열어 보세요: {url}"
+  web_stop: "끝내려면 이 창에서 Ctrl+C 를 누르세요. 그때 대화가 저장됩니다."
+  web_port_busy: "{port} 번 포트를 쓸 수 없습니다. 다른 프로그램이 쓰고 있는 것 같습니다."
+  web_nothing: "주고받은 대화가 없어 저장하지 않았습니다."
 
 test:
   running: "시뮬레이션 학생과 대화하는 중… ({done}/{total})"
