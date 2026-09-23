@@ -36,7 +36,12 @@ gemini = ["google-genai>=1.0"]
 all-providers = ["openai>=1.50", "anthropic>=0.40", "google-genai>=1.0"]
 
 [project.scripts]
-edu-agent = "edu_agent.cli:app"
+# Not ``cli:app``. Typer's app runs in standalone mode, where an abort is a
+# traceback; ``run_cli`` is what turns every failure into a sentence and an exit
+# code. Pointing the console script past it made that handling dead code for
+# everyone who installed the harness (tests call ``run_cli`` directly, so they
+# never noticed).
+edu-agent = "edu_agent.cli:run_cli"
 
 [project.urls]
 Homepage = "https://github.com/ldgit99/eduagent"

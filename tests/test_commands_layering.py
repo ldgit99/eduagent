@@ -74,3 +74,47 @@ class TestTheShellStaysThin:
 def test_the_commands_package_exposes_every_workflow():
     for module in MODULES:
         assert hasattr(commands_pkg, module), module
+
+
+class TestTheInstalledEntryPoint:
+    """What ``edu-agent`` actually runs after ``uv tool install``.
+
+    The console script used to point straight at ``cli:app``. Typer then runs in
+    standalone mode, where ``UserAbort`` — pressing Ctrl+C, or answering ``S`` to
+    save and stop — reaches the terminal as a traceback. Every test called
+    ``run_cli`` directly, so the suite was blind to the one code path every
+    installed copy of the harness takes.
+    """
+
+    def _console_scripts(self) -> dict[str, str]:
+        import tomllib
+
+        # src/edu_agent/cli.py -> src/edu_agent -> src -> repo root
+        pyproject = Path(cli.__file__).resolve().parents[2] / "pyproject.toml"
+        if not pyproject.exists():  # installed, not a checkout
+            pytest.skip("not running from a source checkout")
+        return tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["scripts"]
+
+    def test_it_goes_through_the_friendly_error_handler(self):
+        assert self._console_scripts()["edu-agent"] == "edu_agent.cli:run_cli"
+
+    def test_the_handler_is_callable_with_no_arguments_and_returns_a_code(self):
+        """A console script wrapper does ``sys.exit(func())``, nothing more."""
+        import inspect
+
+        signature = inspect.signature(cli.run_cli)
+        assert all(
+            p.default is not inspect.Parameter.empty for p in signature.parameters.values()
+        )
+        assert cli.run_cli(["--version"]) == 0
+
+    @pytest.mark.parametrize(
+        "raised, expected_code",
+        [
+            (lambda: (_ for _ in ()).throw(__import__("edu_agent").ui.UserAbort()), 0),
+            (lambda: (_ for _ in ()).throw(__import__("edu_agent").ui.Abort("boom")), 1),
+        ],
+    )
+    def test_stopping_is_a_message_not_a_traceback(self, monkeypatch, raised, expected_code):
+        monkeypatch.setattr(cli, "app", lambda **kwargs: raised())
+        assert cli.run_cli([]) == expected_code
