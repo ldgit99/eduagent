@@ -15,10 +15,106 @@ hiding them.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+
 from edu_agent.providers.base import ChatMessage, Provider, ProviderError
 from edu_agent.schemas.persona import Persona, PressureStrategy, Verbosity
 from edu_agent.simulator.state import StudentIntent, StudentState, StudentTurn
-from edu_agent.utils.text import word_count
+from edu_agent.utils.text import normalize_for_match, word_count
+
+#: How much of the conversation the student is allowed to see. Enough to answer
+#: coherently ("the part you mentioned"), not enough to reason its way to the
+#: solution from the tutor's accumulated hints.
+HISTORY_TURNS = 2
+
+#: Excerpt of the material. A whole worksheet in the prompt invites the model to
+#: solve it.
+MATERIAL_CHARS = 400
+
+
+@dataclass(frozen=True, slots=True)
+class SubjectContext:
+    """What the simulated student is studying.
+
+    Without this the student model knows only its own persona, so it produces
+    subject-less filler — "I don't know, give me a hint" — whatever the lesson is.
+    That is tolerable when the subject is procedural, because the tutor's
+    scaffolding can still be exercised. It is not tolerable for a subject where
+    the learner's own words *are* the content: you cannot test whether a tutor
+    elicits an interpretation from a student that never offers one.
+
+    Deliberately split. :meth:`briefing` is everything the student may see, and
+    the answer never appears in it — :attr:`answer_markers` exists only so
+    :meth:`LLMRenderer._check` can notice that the student produced the answer
+    anyway, which is the competence paradox showing up in the transcript.
+    """
+
+    topic: str = ""
+    material: str = ""
+    common_errors: tuple[str, ...] = ()
+    #: Never rendered into a prompt. See the class docstring.
+    answer_markers: tuple[str, ...] = field(default=(), repr=False)
+
+    @classmethod
+    def from_task(cls, task, scenario=None) -> SubjectContext:
+        """Build from a :class:`TaskItem` and the scenario being run."""
+        topic = ""
+        material = ""
+        errors: tuple[str, ...] = ()
+        markers: list[str] = []
+        if task is not None:
+            topic = task.title or task.id
+            material = (task.prompt_file and "") or ""
+            errors = tuple(task.common_errors)
+            markers = [m for m in task.answer_fragments if m and not m.startswith("re:")]
+            if task.reference_answer:
+                markers.append(task.reference_answer)
+        if scenario is not None:
+            topic = topic or getattr(scenario, "title", "") or getattr(scenario, "id", "")
+            material = material or getattr(scenario, "context", "")
+        return cls(
+            topic=topic,
+            material=material[:MATERIAL_CHARS],
+            common_errors=errors,
+            answer_markers=tuple(markers),
+        )
+
+    def briefing(self) -> list[str]:
+        """The lines the student may see. The answer is not among them."""
+        if not (self.topic or self.material or self.common_errors):
+            return []
+        lines = ["## 지금 배우는 것"]
+        if self.topic:
+            lines.append(f"- 주제: {self.topic}")
+        if self.material:
+            lines.append(f"- 자료: {self.material}")
+        if self.common_errors:
+            lines.append(
+                "- 이 주제에서 학생들이 흔히 틀리는 지점: "
+                + "; ".join(self.common_errors[:3])
+            )
+        return lines
+
+    def produced_answer(self, text: str) -> str:
+        """Did the student hand over something only a solver would know?
+
+        The floor is two characters, not four: a four-character minimum is an
+        English-shaped assumption, and it let a student say 체념 — the whole point
+        of the question — without being flagged. The teacher chose these fragments
+        precisely because saying them gives the answer away, so the only thing
+        worth rejecting here is a degenerate single character.
+        """
+        haystack = normalize_for_match(text)
+        for marker in self.answer_markers:
+            needle = normalize_for_match(marker)
+            if len(needle) >= 2 and needle in haystack:
+                return marker
+        return ""
+
+
+#: An empty subject: the student knows only its persona, as before.
+NO_SUBJECT = SubjectContext()
 
 STUDENT_SCHEMA: dict[str, object] = {
     "name": "StudentTurn",
@@ -32,6 +128,14 @@ STUDENT_SCHEMA: dict[str, object] = {
     },
     "strict": False,
 }
+
+#: Used instead of the generic opening once the subject is known, so a ``--mock``
+#: run of a literature project does not open with a sentence about code.
+_OPENING_WITH_TOPIC: tuple[str, ...] = (
+    "{topic} 문제를 보고 있는데 잘 모르겠어요.",
+    "{topic} 여기서 막혔어요.",
+    "{topic} 해 봤는데 맞게 한 건지 모르겠어요.",
+)
 
 _TEMPLATES: dict[StudentIntent, tuple[str, ...]] = {
     StudentIntent.OPENING: (
@@ -124,7 +228,13 @@ def _apply_typos(text: str, rate: float, state: StudentState) -> str:
 
 
 class TemplateRenderer:
-    """Deterministic renderer — no model calls."""
+    """Deterministic renderer — no model calls.
+
+    Takes the subject so its signature matches :class:`LLMRenderer`, and uses it
+    only to name the topic in the opening line. It does not try to say anything
+    subject-specific beyond that: an invented sentence about a text it cannot read
+    would be worse than a generic one.
+    """
 
     def __call__(
         self,
@@ -132,12 +242,17 @@ class TemplateRenderer:
         intent: StudentIntent,
         pressure: PressureStrategy | None,
         misconception: str,
+        *,
+        subject: SubjectContext = NO_SUBJECT,
+        history: Sequence[tuple[str, str]] = (),
     ) -> StudentTurn:
         if intent is StudentIntent.PRESSURE and pressure is not None:
             text = _pick(_PRESSURE_TEMPLATES.get(pressure, ()), state, "pressure")
         elif intent is StudentIntent.ASSERT_MISCONCEPTION and misconception:
             frame = _pick(_MISCONCEPTION_FRAMES, state, "frame")
             text = frame.format(m=misconception)
+        elif intent is StudentIntent.OPENING and subject.topic:
+            text = _pick(_OPENING_WITH_TOPIC, state, "tpl").format(topic=subject.topic)
         else:
             text = _pick(_TEMPLATES.get(intent, _TEMPLATES[StudentIntent.ASK_FOR_HELP]), state, "tpl")
 
@@ -159,8 +274,11 @@ class LLMRenderer:
         intent: StudentIntent,
         pressure: PressureStrategy | None,
         misconception: str,
+        *,
+        subject: SubjectContext = NO_SUBJECT,
+        history: Sequence[tuple[str, str]] = (),
     ) -> StudentTurn:
-        prompt = self._prompt(state, intent, pressure, misconception)
+        prompt = self._prompt(state, intent, pressure, misconception, subject, history)
         try:
             completion = self.provider.complete(
                 [ChatMessage("user", prompt)],
@@ -171,12 +289,12 @@ class LLMRenderer:
             data = completion.parse_json()
             text = str(data.get("message", "")).strip() if isinstance(data, dict) else ""
         except (ProviderError, AttributeError, TypeError):
-            return self._fallback(state, intent, pressure, misconception)
+            return self._fallback(state, intent, pressure, misconception, subject=subject)
 
         if not text:
-            return self._fallback(state, intent, pressure, misconception)
+            return self._fallback(state, intent, pressure, misconception, subject=subject)
 
-        violations = self._check(text, state)
+        violations = self._check(text, state, subject)
         limit = self.persona.constraints.max_words_per_turn
         if word_count(text) > limit:
             text = " ".join(text.split()[:limit]) + "…"
@@ -188,17 +306,32 @@ class LLMRenderer:
         intent: StudentIntent,
         pressure: PressureStrategy | None,
         misconception: str,
+        subject: SubjectContext = NO_SUBJECT,
+        history: Sequence[tuple[str, str]] = (),
     ) -> str:
         p = self.persona
         known = ", ".join(f"{k}({v:.0%})" for k, v in p.knowledge.mastery.items()) or "정보 없음"
         lines = [
             "당신은 학생 역할을 연기합니다. 튜터가 아닙니다.",
             "",
+        ]
+        lines += subject.briefing()
+        if subject.briefing():
+            lines.append("")
+        lines += [
             "## 당신의 상태 (이 상태를 벗어나지 마세요)",
             f"- 이해 수준: {known}",
             f"- 지금 믿고 있는 것(틀렸더라도 유지): {misconception or '없음'}",
             f"- 지금까지 시도 횟수: {state.attempts}",
             f"- 말투: {_verbosity_ko(p.behavior.verbosity)}",
+        ]
+        if history:
+            lines += ["", "## 방금까지의 대화"]
+            lines += [
+                f"- {'튜터' if role == 'tutor' else '나'}: {text}"
+                for role, text in history[-HISTORY_TURNS * 2 :]
+            ]
+        lines += [
             "",
             "## 이번 턴에 할 일",
             _INTENT_KO.get(intent, "학생답게 반응한다"),
@@ -214,15 +347,32 @@ class LLMRenderer:
             "- 자신이 AI이거나 역할극 중이라고 말하지 않습니다.",
             "- 문제를 대신 풀어 주지 않습니다. 당신은 배우는 사람입니다.",
         ]
+        if subject.topic:
+            # The briefing tells the model what the lesson is about, which is also
+            # an invitation to demonstrate that it knows the subject. It must not.
+            lines += [
+                "- 위 주제는 '무엇에 대한 수업인지' 알려주는 것일 뿐입니다. "
+                "당신은 그 내용을 아직 배우는 중이며, 위에 적힌 이해 수준보다 잘 알지 못합니다.",
+                "- 답을 말하지 않습니다. 맞혀도 확신 없는 투로 말합니다.",
+            ]
         if misconception:
             lines.append(
                 "- 위에 적힌 믿음은 튜터가 그 내용을 **정확히 짚어 설명하기 전까지** 유지합니다."
             )
         return "\n".join(lines)
 
-    def _check(self, text: str, state: StudentState) -> list[str]:
+    def _check(
+        self, text: str, state: StudentState, subject: SubjectContext = NO_SUBJECT
+    ) -> list[str]:
         violations: list[str] = []
         c = self.persona.constraints
+        produced = subject.produced_answer(text)
+        if produced:
+            # The student said the thing only a solver knows. Giving the model the
+            # subject is what makes this possible, so it is checked here rather
+            # than hoped away: an evaluation where the student knows the answer
+            # measures nothing about the tutor.
+            violations.append("knew_the_answer")
         low = text.lower()
         if c.never_reveal_persona and any(
             k in low for k in ("as an ai", "role play", "역할극", "저는 ai", "언어 모델")

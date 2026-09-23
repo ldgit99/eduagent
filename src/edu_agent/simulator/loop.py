@@ -18,7 +18,7 @@ from edu_agent.schemas.agent import AgentSpec, TestScenario
 from edu_agent.schemas.educational import TaskItem
 from edu_agent.schemas.persona import Persona
 from edu_agent.schemas.trace import SessionTrace, new_id
-from edu_agent.simulator.renderer import LLMRenderer, TemplateRenderer
+from edu_agent.simulator.renderer import LLMRenderer, SubjectContext, TemplateRenderer
 from edu_agent.simulator.state import SimulatedStudent, StudentIntent
 
 
@@ -60,7 +60,11 @@ def run_simulation(
     renderer = (
         LLMRenderer(student_provider, persona) if student_provider is not None else TemplateRenderer()
     )
-    student = SimulatedStudent(persona, renderer, seed=seed)
+    # What the student is studying. Built from the task and the scenario, and
+    # carrying the answer only so the renderer can notice the student producing
+    # it — never so the student can read it.
+    subject = SubjectContext.from_task(task, scenario)
+    student = SimulatedStudent(persona, renderer, seed=seed, subject=subject)
 
     trace = SessionTrace(
         session_id=new_id("s_"),
@@ -89,10 +93,13 @@ def run_simulation(
             student.state.turn += 1
             if index > 0:
                 student.state.observe_tutor(tutor_message)
+                student.history.append(("tutor", tutor_message))
+            student.history.append(("student", learner_text))
             student_turn = None
         elif index == 0 and scenario.opening:
             learner_text = scenario.opening
             student.state.turn += 1
+            student.history.append(("student", learner_text))
             student_turn = None
         else:
             student_turn = student.reply(tutor_message, first=index == 0)

@@ -201,15 +201,23 @@ def _gave_hint(text: str) -> bool:
 class SimulatedStudent:
     """Facade combining :class:`StudentState` with an LLM renderer."""
 
-    def __init__(self, persona: Persona, renderer, seed: int = 0) -> None:
+    def __init__(self, persona: Persona, renderer, seed: int = 0, subject=None) -> None:
         self.state = StudentState(persona=persona, seed=seed)
         self.renderer = renderer
+        self.subject = subject
+        #: Recent exchange, so the renderer can answer "the part you mentioned"
+        #: instead of starting a new conversation every turn. Kept here rather
+        #: than on :class:`StudentState`, which holds *epistemic* state only —
+        #: what the student knows must not depend on what it can scroll back to.
+        self.history: list[tuple[str, str]] = []
 
     def reply(self, tutor_message: str, *, first: bool = False) -> StudentTurn:
         state = self.state
         state.turn += 1
         if not first:
             state.observe_tutor(tutor_message, was_hint=_gave_hint(tutor_message))
+            if tutor_message:
+                self.history.append(("tutor", tutor_message))
 
         intent = choose_intent(state, tutor_message, first=first)
         pressure = choose_pressure(state) if intent is StudentIntent.PRESSURE else None
@@ -230,7 +238,13 @@ class SimulatedStudent:
             state.gave_up = True
 
         misconception = state.active_misconceptions[0] if state.active_misconceptions else ""
-        turn = self.renderer(state, intent, pressure, misconception)
+        extra = {}
+        if self.subject is not None:
+            extra["subject"] = self.subject
+        if self.history:
+            extra["history"] = tuple(self.history)
+        turn = self.renderer(state, intent, pressure, misconception, **extra)
+        self.history.append(("student", turn.message))
         turn.intent = intent
         turn.pressure = pressure
         turn.showed_reasoning = intent is StudentIntent.SHOW_REASONING

@@ -235,3 +235,154 @@ class TestSimulationLoop:
         result = run_simulation(compiled_spec, scenario, persona, mock_provider, max_turns=5)
         assert result.student_words
         assert result.trace.n_turns > 0
+
+
+class TestSubjectContext:
+    """Telling the student what it is studying, without telling it the answer.
+
+    Before this, the student model was given its persona and nothing else, so it
+    produced subject-less filler whatever the lesson was. That is survivable for a
+    procedural subject — the tutor's scaffolding is still exercised — and fatal
+    for one where the learner's own words are the content.
+
+    Giving the model the subject is also what makes the competence paradox
+    reachable again (docs/research/student-simulation.md, finding 1), so the
+    answer is withheld and the transcript is checked for it.
+    """
+
+    @pytest.fixture
+    def literature_task(self):
+        from edu_agent.schemas.educational import TaskItem
+
+        return TaskItem(
+            id="t01",
+            title="청산별곡 — 화자의 정서",
+            reference_answer="화자는 청산으로 도피하려 하지만 벗어나지 못하는 체념적 정서를 드러낸다.",
+            answer_fragments=["체념", "ㄹ 음의 반복", "re:운율.{0,10}형성"],
+            common_errors=["'님'을 연인으로만 해석함"],
+        )
+
+    @pytest.fixture
+    def subject(self, literature_task):
+        from edu_agent.simulator.renderer import SubjectContext
+
+        return SubjectContext.from_task(literature_task)
+
+    # --- the answer must not reach the student ---------------------------
+    def test_the_briefing_never_contains_the_answer(self, subject, literature_task):
+        text = "\n".join(subject.briefing())
+        assert "체념" not in text
+        assert literature_task.reference_answer not in text
+
+    def test_the_briefing_does_carry_the_topic_and_the_usual_mistakes(self, subject):
+        text = "\n".join(subject.briefing())
+        assert "청산별곡" in text
+        assert "연인으로만" in text
+
+    def test_the_prompt_never_contains_the_answer(self, persona, subject):
+        from edu_agent.simulator.renderer import LLMRenderer
+
+        renderer = LLMRenderer.__new__(LLMRenderer)
+        renderer.persona = persona
+        prompt = renderer._prompt(
+            StudentState(persona=persona, seed=0),
+            StudentIntent.SHOW_REASONING,
+            None,
+            "",
+            subject,
+            (("tutor", "몇 번 나오는지 세어 볼래요?"),),
+        )
+        assert "청산별곡" in prompt
+        assert "체념" not in prompt
+        assert "ㄹ 음의 반복" not in prompt
+
+    def test_the_tutor_turn_reaches_the_student(self, persona, subject):
+        from edu_agent.simulator.renderer import LLMRenderer
+
+        renderer = LLMRenderer.__new__(LLMRenderer)
+        renderer.persona = persona
+        prompt = renderer._prompt(
+            StudentState(persona=persona, seed=0),
+            StudentIntent.ATTEMPT_FIX,
+            None,
+            "",
+            subject,
+            (("tutor", "후렴구를 다시 읽어 볼래요?"),),
+        )
+        assert "후렴구를 다시 읽어 볼래요?" in prompt
+
+    # --- the competence paradox, made visible ----------------------------
+    def test_a_student_that_produces_the_answer_is_flagged(self, persona, subject):
+        import json
+
+        from edu_agent.providers import ScriptedProvider
+        from edu_agent.simulator.renderer import LLMRenderer
+
+        provider = ScriptedProvider(
+            [json.dumps({"message": "화자가 체념하고 있는 것 같아요."}, ensure_ascii=False)]
+        )
+        turn = LLMRenderer(provider, persona)(
+            StudentState(persona=persona, seed=0),
+            StudentIntent.SHOW_REASONING,
+            None,
+            "",
+            subject=subject,
+        )
+        assert "knew_the_answer" in turn.violations
+
+    def test_a_plausible_wrong_guess_is_not_flagged(self, persona, subject):
+        import json
+
+        from edu_agent.providers import ScriptedProvider
+        from edu_agent.simulator.renderer import LLMRenderer
+
+        provider = ScriptedProvider(
+            [json.dumps({"message": "그냥 산에 가고 싶다는 뜻 아니에요?"}, ensure_ascii=False)]
+        )
+        turn = LLMRenderer(provider, persona)(
+            StudentState(persona=persona, seed=0),
+            StudentIntent.SHOW_REASONING,
+            None,
+            "",
+            subject=subject,
+        )
+        assert turn.violations == []
+
+    def test_two_character_korean_answers_are_caught(self, subject):
+        """A four-character floor is an English-shaped assumption."""
+        assert subject.produced_answer("체념이요") == "체념"
+
+    # --- offline runs stop talking about code ----------------------------
+    def test_the_offline_opening_names_the_subject(self, persona, subject):
+        from edu_agent.simulator.renderer import TemplateRenderer
+
+        turn = TemplateRenderer()(
+            StudentState(persona=persona, seed=0), StudentIntent.OPENING, None, "", subject=subject
+        )
+        assert "청산별곡" in turn.message
+        assert "코드" not in turn.message
+
+    def test_without_a_subject_nothing_changes(self, persona):
+        from edu_agent.simulator.renderer import TemplateRenderer
+
+        turn = TemplateRenderer()(
+            StudentState(persona=persona, seed=0), StudentIntent.OPENING, None, ""
+        )
+        assert turn.message
+
+    # --- history ----------------------------------------------------------
+    def test_history_records_both_sides(self, persona):
+        from edu_agent.simulator.renderer import TemplateRenderer
+        from edu_agent.simulator.state import SimulatedStudent
+
+        student = SimulatedStudent(persona, TemplateRenderer(), seed=0)
+        student.reply("", first=True)
+        for i in range(4):
+            student.reply(f"튜터 {i}번째 말")
+        roles = [role for role, _ in student.history]
+        assert "tutor" in roles and "student" in roles
+        assert student.history[-1][0] == "student"
+
+    def test_epistemic_state_does_not_depend_on_history(self, persona):
+        """What the student *knows* must not come from what it can scroll back to."""
+        assert not hasattr(StudentState(persona=persona, seed=0), "history")
