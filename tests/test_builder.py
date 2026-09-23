@@ -180,27 +180,27 @@ class TestTargetFollowsTheDesign:
     def test_fastapi_path_selects_the_service_export(
         self, tmp_project, compiled_spec, example_docs, monkeypatch
     ):
-        from edu_agent.cli import _target_from_technical
+        from edu_agent.commands.export import target_from_technical
         from edu_agent.schemas.technical import ExecutionPath
 
         project = self._project_with(
             tmp_project, compiled_spec, example_docs, ExecutionPath.EXPORT_FASTAPI
         )
-        assert _target_from_technical(project) == "fastapi"
+        assert target_from_technical(project) == "fastapi"
 
     def test_runtime_path_selects_the_cli_export(self, tmp_project, compiled_spec, example_docs):
-        from edu_agent.cli import _target_from_technical
+        from edu_agent.commands.export import target_from_technical
         from edu_agent.schemas.technical import ExecutionPath
 
         project = self._project_with(
             tmp_project, compiled_spec, example_docs, ExecutionPath.HARNESS_RUNTIME
         )
-        assert _target_from_technical(project) == "cli"
+        assert target_from_technical(project) == "cli"
 
     def test_missing_document_falls_back_to_cli(self, tmp_project):
-        from edu_agent.cli import _target_from_technical
+        from edu_agent.commands.export import target_from_technical
 
-        assert _target_from_technical(tmp_project) == "cli"
+        assert target_from_technical(tmp_project) == "cli"
 
 
 def test_a_browser_class_is_recommended_the_service_export(example_docs):

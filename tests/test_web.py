@@ -134,7 +134,7 @@ class TestCliIntegration:
         return tmp_project
 
     def test_conversation_is_saved_on_ctrl_c(self, tmp_project, compiled_spec, monkeypatch):
-        from edu_agent.cli import _run_web
+        from edu_agent.commands.chat import run_web
         from edu_agent.storage.jsonl import RunPaths, list_runs, load_run
 
         project = self._project(tmp_project, compiled_spec)
@@ -145,7 +145,7 @@ class TestCliIntegration:
             raise KeyboardInterrupt
 
         monkeypatch.setattr(ChatServer, "serve_forever", serve_then_interrupt)
-        _run_web(project, compiled_spec, MockProvider(), None, port=0, open_browser=False)
+        run_web(project, compiled_spec, MockProvider(), None, port=0, open_browser=False)
 
         runs = list_runs(project.runs_dir)
         assert runs, "no run directory was written"
@@ -156,7 +156,7 @@ class TestCliIntegration:
     def test_nothing_is_saved_when_nothing_was_said(
         self, tmp_project, compiled_spec, monkeypatch
     ):
-        from edu_agent.cli import _run_web
+        from edu_agent.commands.chat import run_web
         from edu_agent.storage.jsonl import list_runs
 
         project = self._project(tmp_project, compiled_spec)
@@ -165,7 +165,7 @@ class TestCliIntegration:
             raise KeyboardInterrupt
 
         monkeypatch.setattr(ChatServer, "serve_forever", interrupt)
-        _run_web(project, compiled_spec, MockProvider(), None, port=0, open_browser=False)
+        run_web(project, compiled_spec, MockProvider(), None, port=0, open_browser=False)
 
         assert not list_runs(project.runs_dir)
 

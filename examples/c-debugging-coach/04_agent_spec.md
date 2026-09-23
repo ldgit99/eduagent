@@ -5,13 +5,13 @@ meta:
   harness_version: 0.2.0
   status: compiled
   language: ko
-  created_at: '2026-09-23T05:52:21.238447Z'
-  updated_at: '2026-09-23T05:52:21.260957Z'
+  created_at: '2026-09-23T05:58:35.596241Z'
+  updated_at: '2026-09-23T05:58:35.618364Z'
   content_hash: sha256:da993c3ebf8e1662f209ada63212ec8709f63bdcf22b7272e3d47d2eec545729
   input_hashes:
-    01_educational_design.md: sha256:6a813b1c406be1777652a16afc5cb41d83d97065d8d9f1985a496378e3636f1e
-    02_design_principles.md: sha256:f4a1441649c84139af16e1a2a2709357b414918d525291b6dde290b4e60d45c1
-    03_technical_spec.md: sha256:c82f165159860437007f8dd070ed13e99765bfe181e0b41dd8ce24980d715821
+    01_educational_design.md: sha256:6f1588af2e49f4fb5ba919c23de7b38a7dc049c7fc0b0843c6d28266357d449f
+    02_design_principles.md: sha256:3edda0d28992121ce400ec887fdfc1e41c104d7c828584ccba264270e674a18b
+    03_technical_spec.md: sha256:eb277efeba596b978066506b4f823611798c551909ff0677a5f528fdd2bdafe2
 purpose: 프로그램에 오류가 생겼을 때 스스로 원인을 분석하지 않고 AI에게 완성된 정답 코드를 바로 요구한다.
 target_learner: C언어를 처음 배우는 중·고등학생, 중학교 3학년 ~ 고등학교 1학년, 정보/컴퓨터과학, C언어 기초 문법과 디버깅
 learning_goals:
