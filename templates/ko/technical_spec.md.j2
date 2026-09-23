@@ -76,6 +76,7 @@
 ### {{ t.kind.value }}
 - {{ t.description | orblank }}
 - 샌드박스: {{ t.sandboxed | yesno }}
+- 쓸 수 있는 조건: {{ t.when_allowed | orblank('항상') }}
 {% if t.permissions %}
 - 권한: `{{ t.permissions | join('`, `') }}`
 {% endif %}

@@ -277,6 +277,7 @@ def _fill_tools_memory_safety(spec: AgentSpec, tech: TechnicalSpec) -> None:
         ToolPolicy(
             name=t.kind.value,
             description=t.description,
+            when_allowed=t.when_allowed,
             permissions=list(t.permissions),
             sandboxed=t.sandboxed,
         )

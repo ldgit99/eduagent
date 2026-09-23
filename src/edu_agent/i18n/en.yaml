@@ -51,6 +51,10 @@ doctor:
       1) Paste the key your instructor gave you into .env in the project folder:
          EDU_AGENT_API_KEY=...
       2) Work on documents without a model by adding --no-llm
+  sandbox_title: "Code execution"
+  sandbox_container: "Running inside an isolated container (docker)."
+  sandbox_partial: "Isolation is partial. Learner code runs on this machine with time/memory limits and network blocking only."
+  sandbox_off: "Code execution is turned off."
   all_ok: "All good. Start with 'edu-agent init' or 'edu-agent status'."
 
 init:

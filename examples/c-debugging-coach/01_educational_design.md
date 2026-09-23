@@ -5,8 +5,8 @@ meta:
   harness_version: 0.1.0
   status: confirmed
   language: ko
-  created_at: '2026-08-27T17:46:27.240002Z'
-  updated_at: '2026-08-27T17:46:27.286545Z'
+  created_at: '2026-09-23T04:00:11.249222Z'
+  updated_at: '2026-09-23T04:00:11.301930Z'
   content_hash: sha256:4a6a938e710ed1d8586d853e6e37cdd5d47d7b289beb8af30d4eb6fe1b782e07
   input_hashes: {}
 title: C 프로그래밍 디버깅 코치

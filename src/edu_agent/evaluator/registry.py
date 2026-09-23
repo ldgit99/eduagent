@@ -28,6 +28,7 @@ METRIC_DIMENSIONS: dict[str, Dimension] = {
     "action_declaration_match": Dimension.PEDAGOGICAL_FIDELITY,
     "gate_compliance": Dimension.PRINCIPLE_FIDELITY,
     "collapse_onset": Dimension.PRINCIPLE_FIDELITY,
+    "tool_policy_compliance": Dimension.PRINCIPLE_FIDELITY,
     # judge
     "no_unproductive_withholding": Dimension.ADAPTIVE_SUPPORT,
     "misconception_handling": Dimension.INTERACTION_QUALITY,

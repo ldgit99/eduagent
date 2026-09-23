@@ -70,6 +70,26 @@ class GateDecision(HarnessModel):
     attempt: int = Field(default=1, ge=1, description="몇 번째 생성 시도에서의 판정인지")
 
 
+class ToolInvocation(HarnessModel):
+    """One tool the tutor asked for during a turn, and what happened to it.
+
+    Blocked calls are recorded too: "the tutor tried to run the learner's code
+    before they had shown any reasoning" is exactly the kind of thing the
+    evaluator should be able to see, and it disappears if only successes are kept.
+    """
+
+    name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    allowed: bool = True
+    blocked_reason: str = ""
+    ok: bool = False
+    output: str = ""
+    error: str = ""
+    backend: str = ""
+    isolation: str = Field(default="", description="none | partial | container")
+    duration_ms: int = 0
+
+
 class LearnerStateSnapshot(HarnessModel):
     """Learner-state variables at the moment the turn was produced."""
 
@@ -98,6 +118,7 @@ class TurnRecord(HarnessModel):
     state_before: LearnerStateSnapshot = Field(default_factory=LearnerStateSnapshot)
     state_after: LearnerStateSnapshot = Field(default_factory=LearnerStateSnapshot)
     gates: list[GateDecision] = Field(default_factory=list)
+    tool_calls: list[ToolInvocation] = Field(default_factory=list)
     regenerations: int = Field(default=0, ge=0)
     fallback_used: bool = False
     leaked_answer: bool = False
@@ -109,6 +130,10 @@ class TurnRecord(HarnessModel):
     @property
     def blocked_gates(self) -> list[GateDecision]:
         return [g for g in self.gates if not g.passed]
+
+    @property
+    def blocked_tools(self) -> list[ToolInvocation]:
+        return [c for c in self.tool_calls if not c.allowed]
 
 
 class Span(HarnessModel):

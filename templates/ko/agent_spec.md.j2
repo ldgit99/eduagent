@@ -94,7 +94,8 @@
 
 {% if d.tools %}
 {% for t in d.tools %}
-- **{{ t.name }}**: {{ t.description | orblank }}{% if t.permissions %} (권한: `{{ t.permissions | join('`, `') }}`){% endif %}{% if t.sandboxed %} · 샌드박스{% endif %}
+- **{{ t.name }}**: {{ t.description | orblank }}{% if t.permissions %} (권한: `{{ t.permissions | join('`, `') }}`){% endif %}{% if t.sandboxed %} · 샌드박스{% endif %}{% if t.when_allowed %}
+  - 쓸 수 있는 조건: `{{ t.when_allowed }}` — 조건 전의 호출은 실행 중에 차단되고 기록에 남습니다.{% endif %}
 {% endfor %}
 {% else %}
 - 없음

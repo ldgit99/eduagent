@@ -78,6 +78,7 @@
 ### {{ t.kind.value }}
 - {{ t.description | orblank }}
 - Sandboxed: {{ t.sandboxed | yesno }}
+- Allowed when: {{ t.when_allowed | orblank('always') }}
 {% if t.permissions %}
 - Permissions: `{{ t.permissions | join('`, `') }}`
 {% endif %}

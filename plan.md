@@ -476,6 +476,40 @@ v1의 항목(AI Provider / Agent Architecture / Backend / Frontend / Data·RAG /
 
 Multi-agent가 불필요한 경우에는 단일 agent를 추천한다.
 
+### 8.4 도구 정책과 코드 실행 샌드박스 **[구현됨]**
+
+도구는 기술 항목이 아니라 **교육적 결정**이다. 학습자 대신 코드를 돌려 원인을 찾아 주는 것은
+정답을 알려주는 것과 같은 실패이고, 정답 정책만 게이트로 막아 두면 도구가 그 우회로가 된다.
+그래서 `ToolSpec`에 `when_allowed`(학습자 상태 조건, §7.3과 같은 조건 문법)를 둔다.
+
+```yaml
+tools:
+  - kind: code_execution
+    sandboxed: true
+    when_allowed: reasoning_shown == true
+    permissions: [network:none, fs:tmp-only, timeout:5s, memory:256m]
+```
+
+- 조건 전의 호출은 **차단되고, 차단된 호출도 trace에 남는다** — "너무 일찍 쓰려 했는가"가
+  결정적 검사 항목(`tool_policy_compliance`)이 된다. 성공만 기록하면 이 신호가 사라진다.
+- 추천기는 코드 실행이 필요하다고 답한 프로젝트에 `reasoning_shown == true`를 기본으로 붙이고
+  그 이유를 결정표에 남긴다. 학생이 비우면 항상 허용이다.
+- 런타임의 도구 호출은 턴당 2회로 제한한다. 그 이상은 대개 학습자와 대화하는 대신 도구를
+  반복하는 것이다. 게이트 재생성과 도구 호출은 **하나의 예산**을 공유하므로 둘을 번갈아도
+  턴은 반드시 끝난다.
+
+실행 격리는 세 단계이고, **하네스는 지금 어느 단계인지 숨기지 않는다**(ADR-15).
+
+| backend | 격리 | 방법 |
+|---|---|---|
+| `docker` | container | `--network none`, 메모리·PID·CPU 제한, 읽기 전용 루트, tmpfs |
+| `subprocess` | **partial** | 임시 폴더, 환경변수 세탁(키 제거), 벽시계 타임아웃, POSIX rlimit, Python 가드가 소켓·프로세스 생성 제거 |
+| `disabled` | none | 실행하지 않고 이유를 말한다 |
+
+`auto`는 docker가 닿으면 docker, 아니면 subprocess다. `subprocess`는 **감옥이 아니라 완화**이며
+`ExecResult.isolation`과 `edu-agent doctor`가 그렇게 표시한다. 지키지 못할 보장을 하는 것보다
+못 지킨다고 말하는 쪽이 안전하다.
+
 ---
 
 ## 9. `04_agent_spec.md`

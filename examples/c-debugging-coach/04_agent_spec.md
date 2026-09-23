@@ -5,13 +5,13 @@ meta:
   harness_version: 0.1.0
   status: compiled
   language: ko
-  created_at: '2026-08-27T17:46:27.352012Z'
-  updated_at: '2026-08-27T17:46:27.372065Z'
-  content_hash: sha256:391cd86769c792a225fcd00b3b2048e1e440845048c985688ef8642c0423089d
+  created_at: '2026-09-23T04:00:11.374672Z'
+  updated_at: '2026-09-23T04:00:11.394626Z'
+  content_hash: sha256:a89726d108bab47d1ad084b18c3953d4bab1af2e68db864f83c8bba5693a78b3
   input_hashes:
-    01_educational_design.md: sha256:ccdb7d8358ca6dfb496f4702096457c801a14b0f17e7e344a2f414b4560805bf
-    02_design_principles.md: sha256:646c9a32ab26b459660eab6156fc0d4010dd1cb7687c5c9fc341ccb0f1f9d6e3
-    03_technical_spec.md: sha256:c7fb4772fb16dcf445f1d38020372fd527a1e3efc01fc7fc65b5dd8f31735287
+    01_educational_design.md: sha256:6974148d4c8ea70ee8992414c8601504d6ca7b55fe9b3f324a118053d93ed8bb
+    02_design_principles.md: sha256:d7918e3428d3a1cae506c01d9462bf1819e193336dc72030aff93e168f27cd6f
+    03_technical_spec.md: sha256:15c3aa57cdf3dd290590c4e2b64142d61445dc9a926e9ce829eb5bf29929c657
 purpose: 프로그램에 오류가 생겼을 때 스스로 원인을 분석하지 않고 AI에게 완성된 정답 코드를 바로 요구한다.
 target_learner: C언어를 처음 배우는 중·고등학생, 중학교 3학년 ~ 고등학교 1학년, 정보/컴퓨터과학, C언어 기초 문법과 디버깅
 learning_goals:
@@ -531,7 +531,7 @@ gates:
 tools:
 - name: code_execution
   description: 학습자 코드를 안전한 환경에서 실행합니다.
-  when_allowed: ''
+  when_allowed: reasoning_shown == true
   permissions:
   - network:none
   - fs:tmp-only
@@ -1144,7 +1144,7 @@ C언어를 처음 배우는 중·고등학생, 중학교 3학년 ~ 고등학교 
 
 ## 12. 도구
 
-- **code_execution**: 학습자 코드를 안전한 환경에서 실행합니다. (권한: `network:none`, `fs:tmp-only`, `timeout:5s`, `memory:256m`) · 샌드박스
+- **code_execution**: 학습자 코드를 안전한 환경에서 실행합니다. (권한: `network:none`, `fs:tmp-only`, `timeout:5s`, `memory:256m`) · 샌드박스  - 쓸 수 있는 조건: `reasoning_shown == true` — 조건 전의 호출은 실행 중에 차단되고 기록에 남습니다.
 ## 13. 기억
 
 - 대화 중 기억: 예

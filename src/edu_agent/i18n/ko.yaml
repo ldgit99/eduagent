@@ -51,6 +51,10 @@ doctor:
       1) 교수자가 배포한 키를 프로젝트 폴더의 .env 파일에 붙여넣기
          EDU_AGENT_API_KEY=...
       2) 키 없이 문서 작업만 하려면 명령에 --no-llm 을 붙이기
+  sandbox_title: "코드 실행 환경"
+  sandbox_container: "컨테이너로 격리해 실행합니다 (docker)."
+  sandbox_partial: "격리가 부분적입니다. 학생 코드는 이 컴퓨터에서 그대로 실행됩니다 — 시간·메모리 제한과 네트워크 차단만 적용됩니다."
+  sandbox_off: "코드 실행이 꺼져 있습니다."
   all_ok: "모두 정상입니다. 'edu-agent init' 또는 'edu-agent status'로 시작하세요."
 
 init:

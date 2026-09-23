@@ -116,6 +116,25 @@ def _load_spec(project: Project, *, warn_stale: bool = True):
     return spec
 
 
+def _tool_runtime(project: Project, spec, task):
+    """Tools are only built when the spec declares one the harness can run."""
+    from edu_agent.runtime.tools import ToolRuntime
+
+    if not spec.tools:
+        return None
+    return ToolRuntime(spec.tools, sandbox_policy=project.config.sandbox, task=task)
+
+
+def _tool_line(call) -> str:
+    """One line per tool call, including the refused ones."""
+    if not call.allowed:
+        return f"[yellow]도구 차단 · {call.name}: {call.blocked_reason}[/yellow]"
+    mark = "실행" if call.ok else "실패"
+    where = f" · {call.backend}" if call.backend else ""
+    detail = f": {call.error}" if call.error else ""
+    return f"[dim]도구 {mark} · {call.name}{where}{detail}[/dim]"
+
+
 def _first_task(project: Project):
     from edu_agent.schemas.educational import EducationalDesign
 
@@ -217,8 +236,44 @@ def doctor(
             if getattr(exc, "hint", ""):
                 ui.note(exc.hint)
 
+    _report_sandbox(project)
+
     ui.say()
     ui.info(t("doctor.all_ok"))
+
+
+def _report_sandbox(project: Project | None) -> None:
+    """Only shown when the project actually declares a code-execution tool."""
+    from edu_agent.security.sandbox import describe_backends, get_sandbox
+
+    if project is None:
+        return
+    spec_path = project.doc_path(SPEC_DOC)
+    if not spec_path.exists():
+        return
+    from edu_agent.documents.io import load_document
+    from edu_agent.schemas.agent import AgentSpec
+
+    try:
+        spec, _ = load_document(spec_path, AgentSpec)
+    except Exception:
+        return
+    assert isinstance(spec, AgentSpec)
+    if not any(tool.name == "code_execution" for tool in spec.tools):
+        return
+
+    policy = project.config.sandbox
+    ui.say()
+    active = get_sandbox(policy)
+    ui.info(t("doctor.sandbox_title"))
+    if active.name == "subprocess":
+        ui.warn(t("doctor.sandbox_partial"))
+    elif active.name == "docker":
+        ui.ok(t("doctor.sandbox_container"))
+    else:
+        ui.info(t("doctor.sandbox_off"))
+    for name, ok_, why in describe_backends(policy):
+        (ui.ok if ok_ else ui.note)(f"{name}{'' if ok_ else f' — {why}'}")
 
 
 # --- init -----------------------------------------------------------------
@@ -580,6 +635,8 @@ def run(
 
         result = runtime.turn(message)
         ui.say()
+        for call in result.tool_calls:
+            ui.note(_tool_line(call))
         ui.say(f"[bold cyan]튜터[/bold cyan]  {result.message}")
         if result.gate_outcome.blocked:
             reasons = "; ".join(d.reason for d in result.gate_outcome.blocked[:2])
@@ -620,6 +677,7 @@ def _run_with_persona(project, spec, provider, persona_id, task, turns, mock) ->
     result = run_simulation(
         spec, scenario, target, provider,
         student_provider=student_provider, task=task, run_id=run_id, max_turns=turns,
+        tools=_tool_runtime(project, spec, task),
     )
     for turn in result.trace.turns:
         ui.say(f"[bold]학생[/bold]  {turn.learner_message}")
@@ -631,6 +689,8 @@ def _run_with_persona(project, spec, provider, persona_id, task, turns, mock) ->
             marks.append("[red]정답 노출[/red]")
         if turn.blocked_gates:
             marks.append(f"[yellow]게이트 차단 {len(turn.blocked_gates)}건[/yellow]")
+        for call in turn.tool_calls:
+            marks.append(_tool_line(call))
         if marks:
             ui.note(" · ".join(marks))
         ui.say()
@@ -710,6 +770,7 @@ def test(
                 spec, sc, persona, provider,
                 student_provider=student_provider, task=task, seed=seed,
                 run_id=run_id, spec_hash=spec.meta.content_hash or "",
+                tools=_tool_runtime(project, spec, task),
             )
             save_session(paths, result.trace)
             traces.append(result.trace)

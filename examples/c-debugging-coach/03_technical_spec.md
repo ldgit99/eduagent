@@ -5,9 +5,9 @@ meta:
   harness_version: 0.1.0
   status: confirmed
   language: ko
-  created_at: '2026-08-27T17:46:27.278021Z'
-  updated_at: '2026-08-27T17:46:27.318114Z'
-  content_hash: sha256:3c48c9454a84f1f2ada5336405d0e08212135e3445ebb120c18589355698f716
+  created_at: '2026-09-23T04:00:11.293201Z'
+  updated_at: '2026-09-23T04:00:11.338730Z'
+  content_hash: sha256:607f21a7362e15b021d5c51f8a7dd9eebb64fb49abe04e07ce2fc9eaead7be94
   input_hashes: {}
 execution_path: harness_runtime
 requirements:
@@ -56,6 +56,7 @@ tools:
   - fs:tmp-only
   - timeout:5s
   - memory:256m
+  when_allowed: reasoning_shown == true
 storage:
   database: sqlite
   trace_storage: jsonl
@@ -93,7 +94,8 @@ decisions:
   origin: recommended
 - area: 도구
   choice: 샌드박스 코드 실행기
-  reason: 코드를 실제로 실행해야 한다고 하셨습니다. 네트워크를 막고 임시 폴더에서만 5초 제한으로 실행합니다.
+  reason: 코드를 실제로 실행해야 한다고 하셨습니다. 네트워크를 막고 임시 폴더에서만 5초 제한으로 실행합니다. 학습자가 자기 생각을 말한 뒤에만 실행합니다 (조건을 비우면 항상
+    실행할 수 있습니다).
   origin: recommended
 - area: 서버
   choice: 필요 없음
@@ -167,6 +169,7 @@ decisions:
 ### code_execution
 - 학습자 코드를 안전한 환경에서 실행합니다.
 - 샌드박스: 예
+- 쓸 수 있는 조건: reasoning_shown == true
 - 권한: `network:none`, `fs:tmp-only`, `timeout:5s`, `memory:256m`
 
 ## 8. 저장
@@ -197,6 +200,6 @@ decisions:
 | 에이전트 구조 | 단일 에이전트 | 하나의 역할(튜터)만 필요합니다. 다중 에이전트는 복잡도만 늘리고 교육적 이득이 없습니다. | 하네스 추천 |
 | 자료 검색 | 사용하지 않음 | 별도 자료 참고가 필요하지 않다고 하셨습니다. | 하네스 추천 |
 | 기억 | 세션 동안만 | 장기 기억이 필요 없으면 저장하지 않는 것이 개인정보 측면에서 안전합니다. | 하네스 추천 |
-| 도구 | 샌드박스 코드 실행기 | 코드를 실제로 실행해야 한다고 하셨습니다. 네트워크를 막고 임시 폴더에서만 5초 제한으로 실행합니다. | 하네스 추천 |
+| 도구 | 샌드박스 코드 실행기 | 코드를 실제로 실행해야 한다고 하셨습니다. 네트워크를 막고 임시 폴더에서만 5초 제한으로 실행합니다. 학습자가 자기 생각을 말한 뒤에만 실행합니다 (조건을 비우면 항상 실행할 수 있습니다). | 하네스 추천 |
 | 서버 | 필요 없음 | 하네스 런타임이 직접 실행하므로 별도 서버가 없습니다. | 하네스 추천 |
 | 배포 | 각자 컴퓨터에서 실행 | 수업 규모에서는 별도 서버가 필요하지 않습니다. | 하네스 추천 |

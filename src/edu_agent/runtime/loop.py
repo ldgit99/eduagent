@@ -26,6 +26,12 @@ from edu_agent.runtime.prompt import (
     build_turn_prompt,
 )
 from edu_agent.runtime.state import LearnerState, apply_triggers
+from edu_agent.runtime.tools import (
+    MAX_CALLS_PER_TURN,
+    ToolCall,
+    ToolRuntime,
+    parse_tool_call,
+)
 from edu_agent.runtime.triggers import detect_triggers
 from edu_agent.schemas.agent import AgentSpec, Phase
 from edu_agent.schemas.educational import TaskItem
@@ -35,6 +41,7 @@ from edu_agent.schemas.trace import (
     Message,
     Role,
     SessionTrace,
+    ToolInvocation,
     TurnRecord,
 )
 
@@ -51,6 +58,23 @@ class TurnResult:
     gate_outcome: GateOutcome
     fallback_used: bool = False
 
+    @property
+    def tool_calls(self) -> list[ToolInvocation]:
+        return self.record.tool_calls
+
+
+@dataclass(slots=True)
+class Generated:
+    """The outcome of one generate-check-maybe-regenerate cycle."""
+
+    candidate: Candidate
+    outcome: GateOutcome
+    regenerations: int
+    fallback_used: bool
+    error: str
+    usage: dict[str, int]
+    tool_calls: list[ToolInvocation]
+
 
 @dataclass(slots=True)
 class AgentRuntime:
@@ -61,16 +85,21 @@ class AgentRuntime:
     task: TaskItem | None = None
     max_regenerations: int = MAX_REGENERATIONS
     trace: SessionTrace = field(default_factory=SessionTrace)
+    tools: ToolRuntime | None = None
 
     state: LearnerState = field(default_factory=LearnerState)
     history: list[ChatMessage] = field(default_factory=list)
     action_history: list[AgentAction] = field(default_factory=list)
     _gates: GateRunner = field(init=False)
     _system: str = field(init=False, default="")
+    _tool_block: str = field(init=False, default="")
 
     def __post_init__(self) -> None:
         self._gates = GateRunner(self.spec.gates, self.task)
         self._system = build_system_prompt(self.spec)
+        if self.tools is None and self.spec.tools:
+            self.tools = ToolRuntime(self.spec.tools, task=self.task)
+        self._tool_block = self.tools.describe() if self.tools else ""
         self.trace.model = getattr(self.provider, "model", "")
         if self.task is not None:
             self.trace.task_id = self.task.id
@@ -92,9 +121,8 @@ class AgentRuntime:
         allowed, level = allowed_actions(self.spec.behaviors, self.state, triggers, self.spec.gates)
         phase = self._current_phase()
 
-        candidate, outcome, regenerations, fallback, error, usage = self._generate(
-            learner_message, allowed, level, phase, triggers
-        )
+        generated = self._generate(learner_message, allowed, level, phase, triggers)
+        candidate, outcome = generated.candidate, generated.outcome
 
         self.history.append(ChatMessage("user", learner_message))
         self.history.append(ChatMessage("assistant", candidate.message))
@@ -111,24 +139,25 @@ class AgentRuntime:
             state_before=LearnerStateSnapshot(values=state_before),
             state_after=LearnerStateSnapshot(values=self.state.snapshot()),
             gates=outcome.decisions,
-            regenerations=regenerations,
-            fallback_used=fallback,
+            tool_calls=generated.tool_calls,
+            regenerations=generated.regenerations,
+            fallback_used=generated.fallback_used,
             leaked_answer=leak.leaked,
             leak_evidence=leak.evidence,
-            error=error,
+            error=generated.error,
             latency_ms=int((time.perf_counter() - started) * 1000),
-            usage=usage,
+            usage=generated.usage,
         )
         self.trace.turns.append(record)
-        if error:
-            self.trace.errors.append(error)
+        if generated.error:
+            self.trace.errors.append(generated.error)
 
         return TurnResult(
             message=candidate.message,
             action=candidate.action,
             record=record,
             gate_outcome=outcome,
-            fallback_used=fallback,
+            fallback_used=generated.fallback_used,
         )
 
     def messages(self) -> list[Message]:
@@ -148,13 +177,18 @@ class AgentRuntime:
         level: int,
         phase: Phase | None,
         triggers: list[TriggerEvent],
-    ) -> tuple[Candidate, GateOutcome, int, bool, str, dict[str, int]]:
+    ) -> Generated:
         correction = ""
+        tool_results: list[str] = []
+        tool_calls: list[ToolInvocation] = []
         usage_total: dict[str, int] = {"input_tokens": 0, "output_tokens": 0}
         last_outcome = GateOutcome()
         error = ""
+        attempt = 0
 
-        for attempt in range(1, self.max_regenerations + 2):
+        # One budget covers both kinds of extra round trip — gate regenerations and
+        # tool calls — so a model that alternates between them still terminates.
+        for _ in range(self.max_regenerations + 1 + MAX_CALLS_PER_TURN):
             turn_prompt = build_turn_prompt(
                 self.state,
                 allowed,
@@ -162,6 +196,8 @@ class AgentRuntime:
                 task=self.task,
                 correction=correction,
                 ladder_level=level,
+                tools=self._tool_block,
+                tool_results=tool_results,
             )
             messages = [
                 ChatMessage("system", self._system),
@@ -175,7 +211,21 @@ class AgentRuntime:
                 break
 
             _accumulate(usage_total, completion)
-            candidate = _parse_candidate(completion, allowed, level)
+            candidate, requested_tool = _parse_candidate(completion, allowed, level)
+
+            if requested_tool is not None and self.tools is not None:
+                if len(tool_calls) >= MAX_CALLS_PER_TURN:
+                    tool_results.append(
+                        "## 도구 결과\n이번 턴에는 도구를 더 쓸 수 없습니다. "
+                        "지금까지의 결과로 학습자에게 할 말을 완성하세요."
+                    )
+                    continue
+                record = self.tools.call(requested_tool, self.state)
+                tool_calls.append(record)
+                tool_results.append(_render_tool_result(record))
+                continue
+
+            attempt += 1
             outcome = self._gates.check(
                 candidate,
                 self.state,
@@ -185,8 +235,11 @@ class AgentRuntime:
             )
             last_outcome = outcome
             if outcome.passed:
-                return candidate, outcome, attempt - 1, False, error, usage_total
+                return Generated(candidate, outcome, attempt - 1, False, error, usage_total,
+                                 tool_calls)
             correction = outcome.feedback()
+            if attempt > self.max_regenerations:
+                break
 
         fallback = safe_fallback(allowed)
         final_outcome = self._gates.check(
@@ -198,7 +251,8 @@ class AgentRuntime:
         )
         # Keep the record of *why* we fell back, not just the clean final check.
         final_outcome.decisions = last_outcome.decisions + final_outcome.decisions
-        return fallback, final_outcome, self.max_regenerations, True, error, usage_total
+        return Generated(fallback, final_outcome, self.max_regenerations, True, error,
+                         usage_total, tool_calls)
 
     def _current_phase(self) -> Phase | None:
         from edu_agent.runtime.state import evaluate_condition
@@ -218,15 +272,28 @@ def _accumulate(total: dict[str, int], completion: Completion) -> None:
     total["output_tokens"] += completion.usage.output_tokens
 
 
-def _parse_candidate(completion: Completion, allowed: set[AgentAction], level: int) -> Candidate:
+def _render_tool_result(call: ToolInvocation) -> str:
+    """Hand the tool's outcome back to the model — refusals included, with the reason."""
+    if not call.allowed:
+        return f"## 도구 결과 · {call.name}\n요청이 거부되었습니다: {call.blocked_reason}"
+    body = call.output or call.error or "(결과 없음)"
+    return f"## 도구 결과 · {call.name}\n{body}"
+
+
+def _parse_candidate(
+    completion: Completion, allowed: set[AgentAction], level: int
+) -> tuple[Candidate, ToolCall | None]:
     """Read the model's structured turn, degrading gracefully if it wrote prose."""
     try:
         data = completion.parse_json()
     except ProviderError:
-        return Candidate(action=_default_action(allowed), message=completion.text, ladder_level=level)
+        data = None
 
     if not isinstance(data, dict):
-        return Candidate(action=_default_action(allowed), message=completion.text, ladder_level=level)
+        fallback = Candidate(
+            action=_default_action(allowed), message=completion.text, ladder_level=level
+        )
+        return fallback, None
 
     message = str(data.get("message") or completion.text).strip()
     raw_action = str(data.get("action") or "").strip()
@@ -234,7 +301,9 @@ def _parse_candidate(completion: Completion, allowed: set[AgentAction], level: i
         action = AgentAction(raw_action)
     except ValueError:
         action = _default_action(allowed)
-    return Candidate(action=action, message=message, ladder_level=level)
+    return Candidate(action=action, message=message, ladder_level=level), parse_tool_call(
+        data.get("tool_call")
+    )
 
 
 def _default_action(allowed: set[AgentAction]) -> AgentAction:

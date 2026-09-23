@@ -15,6 +15,7 @@ import yaml
 from pydantic import Field
 
 from edu_agent.schemas.common import HarnessModel
+from edu_agent.security.sandbox import SandboxPolicy
 
 #: Environment variables the harness reads. Keeping this list to three is a
 #: deliberate UX decision (plan v2 §18.3): a non-programmer can be told exactly
@@ -105,6 +106,10 @@ class ProjectConfig(HarnessModel):
     provider: ProviderProfile = Field(default_factory=ProviderProfile)
     evaluation: EvalConfig = Field(default_factory=EvalConfig)
     improve: ImproveConfig = Field(default_factory=ImproveConfig)
+    sandbox: SandboxPolicy = Field(
+        default_factory=SandboxPolicy,
+        description="코드 실행 도구를 어떻게 격리할지. backend: disabled 로 완전히 끌 수 있습니다.",
+    )
 
     @classmethod
     def load(cls, path: Path) -> ProjectConfig:

@@ -28,6 +28,15 @@ TURN_SCHEMA: dict[str, object] = {
             "action": {"type": "string", "description": "허용된 행동 중 하나"},
             "message": {"type": "string", "description": "학습자에게 보여줄 말"},
             "rationale": {"type": "string", "description": "이 행동을 고른 이유 (학습자에게 보이지 않음)"},
+            "tool_call": {
+                "type": "object",
+                "description": "도구를 써야 할 때만. 쓰지 않으면 넣지 않습니다.",
+                "properties": {
+                    "name": {"type": "string"},
+                    "arguments": {"type": "object"},
+                },
+                "required": ["name"],
+            },
         },
         "required": ["action", "message"],
         "additionalProperties": False,
@@ -104,6 +113,8 @@ def build_turn_prompt(
     task: TaskItem | None = None,
     correction: str = "",
     ladder_level: int = 0,
+    tools: str = "",
+    tool_results: list[str] | None = None,
 ) -> str:
     """The per-turn part: current state, the action menu, any gate correction."""
     lines = [f"## 지금 상황\n{state.summary_ko()}"]
@@ -122,6 +133,12 @@ def build_turn_prompt(
 
     if task is not None and task.title:
         lines.append(f"## 과제\n{task.title}")
+
+    if tools:
+        lines.append(tools)
+
+    for block in tool_results or []:
+        lines.append(block)
 
     if correction:
         lines.append(f"## 수정 요청\n{correction}")

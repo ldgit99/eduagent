@@ -30,6 +30,8 @@
 | GitHub 계정 | 1주차 | Classroom 사용 시 |
 | Codespaces 또는 로컬 설치 | 1주차 | Codespaces 권장 |
 | API 키 또는 프록시 | 10주차부터 | [api-keys.md](api-keys.md) |
+| Docker (선택) | 코드 실행 도구를 쓸 때만 | 없으면 시간·메모리 제한과 네트워크 차단만 걸린 **부분 격리**로 돕니다. `edu-agent doctor` 가 어느 쪽인지 알려줍니다 |
+| C 컴파일러 (선택) | C 과제를 실행할 때만 | Codespaces 에는 이미 있습니다. Windows 로컬에는 없습니다 |
 
 1–9주차는 **키 없이** 진행할 수 있습니다 (`--no-llm`). 실제 모델 호출은 컴파일 이후에
 필요합니다.

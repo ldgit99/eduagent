@@ -5,8 +5,8 @@ meta:
   harness_version: 0.1.0
   status: confirmed
   language: ko
-  created_at: '2026-08-27T17:46:27.240002Z'
-  updated_at: '2026-08-27T17:46:27.299070Z'
+  created_at: '2026-09-23T04:00:11.249222Z'
+  updated_at: '2026-09-23T04:00:11.317921Z'
   content_hash: sha256:59ba5b04fe9498087526bdba7c156091de03025e39bfa23f50757dd6223f8046
   input_hashes: {}
 theories_and_strategies:

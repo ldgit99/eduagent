@@ -113,15 +113,35 @@ def save_session(paths: RunPaths, trace: SessionTrace) -> Path:
     rows.append(session_span.model_dump(mode="json"))
 
     for record in trace.turns:
-        rows.append(
-            Span(
-                trace_id=trace.session_id,
-                parent_id=trace.session_id,
-                name="turn",  # type: ignore[arg-type]
-                attributes=Span.gen_ai_attrs("edu-agent", trace.model, record.usage),
-                turn=record,
-            ).model_dump(mode="json")
+        turn_span = Span(
+            trace_id=trace.session_id,
+            parent_id=trace.session_id,
+            name="turn",  # type: ignore[arg-type]
+            attributes=Span.gen_ai_attrs("edu-agent", trace.model, record.usage),
+            turn=record,
         )
+        rows.append(turn_span.model_dump(mode="json"))
+        # The turn record already carries the tool calls; these extra spans exist
+        # so an OTel-shaped reader sees `execute_tool` where it expects to.
+        for call in record.tool_calls:
+            rows.append(
+                Span(
+                    trace_id=trace.session_id,
+                    parent_id=turn_span.span_id,
+                    name="execute_tool",  # type: ignore[arg-type]
+                    attributes={
+                        "gen_ai.tool.name": call.name,
+                        "gen_ai.operation.name": "execute_tool",
+                        "edu_agent.turn_index": record.turn_index,
+                        "edu_agent.tool.allowed": call.allowed,
+                        "edu_agent.tool.blocked_reason": call.blocked_reason,
+                        "edu_agent.tool.ok": call.ok,
+                        "edu_agent.tool.backend": call.backend,
+                        "edu_agent.tool.isolation": call.isolation,
+                        "edu_agent.tool.duration_ms": call.duration_ms,
+                    },
+                ).model_dump(mode="json")
+            )
     return write_jsonl(paths.session(trace.session_id), rows)
 
 

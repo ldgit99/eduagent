@@ -27,3 +27,15 @@ improve:
   auto_level: 'off'
   allow_structure_edits: false
   max_llm_calls: 200
+sandbox:
+  backend: auto
+  timeout_s: 10
+  memory_mb: 256
+  max_output_bytes: 4000
+  network: false
+  languages:
+  - python
+  - c
+  docker_images:
+    python: python:3.12-slim
+    c: gcc:13

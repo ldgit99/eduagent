@@ -14,7 +14,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import ClassVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from edu_agent.schemas.common import DocumentModel, HarnessModel
 
@@ -173,10 +173,26 @@ class MemorySpec(HarnessModel):
 
 
 class ToolSpec(HarnessModel):
+    """A tool the agent may use, and the learner state it may be used in.
+
+    ``when_allowed`` is what stops a tool from becoming a way around the design:
+    running the learner's code for them before they have said what they think is
+    the same pedagogical failure as handing over the answer, just wearing a
+    different hat. It is checked at runtime, not only written down.
+    """
+
     kind: ToolKind
     description: str = ""
     sandboxed: bool = Field(default=True, description="Executed inside a permission boundary")
     permissions: list[str] = Field(default_factory=list, description="e.g. network:none, fs:read-only")
+    when_allowed: str = Field(default="", description="학습자 상태 조건 (비우면 항상 허용)")
+
+    @field_validator("when_allowed")
+    @classmethod
+    def _condition(cls, value: str) -> str:
+        from edu_agent.schemas.principles import validate_condition
+
+        return validate_condition(value)
 
 
 class StorageSpec(HarnessModel):

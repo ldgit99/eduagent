@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from edu_agent.providers.base import Provider
 from edu_agent.runtime.loop import AgentRuntime
+from edu_agent.runtime.tools import ToolRuntime
 from edu_agent.schemas.agent import AgentSpec, TestScenario
 from edu_agent.schemas.educational import TaskItem
 from edu_agent.schemas.persona import Persona
@@ -51,6 +52,7 @@ def run_simulation(
     run_id: str = "",
     spec_hash: str = "",
     max_turns: int | None = None,
+    tools: ToolRuntime | None = None,
 ) -> SimulationResult:
     """Run one tutor↔simulated-student conversation."""
     from edu_agent.utils.text import word_count
@@ -69,7 +71,9 @@ def run_simulation(
         spec_hash=spec_hash,
         student_model=getattr(student_provider, "model", "template"),
     )
-    runtime = AgentRuntime(spec=spec, provider=tutor_provider, task=task, trace=trace)
+    runtime = AgentRuntime(
+        spec=spec, provider=tutor_provider, task=task, trace=trace, tools=tools
+    )
     result = SimulationResult(trace=trace)
 
     limit = max_turns or scenario.max_turns

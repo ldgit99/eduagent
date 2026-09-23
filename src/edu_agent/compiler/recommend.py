@@ -133,13 +133,17 @@ def recommend_stack(spec: TechnicalSpec, *, overwrite: bool = False) -> Technica
                     description="학습자 코드를 안전한 환경에서 실행합니다.",
                     sandboxed=True,
                     permissions=["network:none", "fs:tmp-only", "timeout:5s", "memory:256m"],
+                    # Running the code before the learner has said what they think
+                    # does their diagnosing for them, so the tool waits for that.
+                    when_allowed="reasoning_shown == true",
                 )
             )
             decide(
                 "도구",
                 "샌드박스 코드 실행기",
                 "코드를 실제로 실행해야 한다고 하셨습니다. 네트워크를 막고 임시 폴더에서만 "
-                "5초 제한으로 실행합니다.",
+                "5초 제한으로 실행합니다. 학습자가 자기 생각을 말한 뒤에만 실행합니다 "
+                "(조건을 비우면 항상 실행할 수 있습니다).",
             )
         if req.needs_external_materials:
             tools.append(
