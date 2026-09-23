@@ -52,6 +52,19 @@ def compile_timeout(policy: SandboxPolicy) -> int:
     return max(MIN_COMPILE_TIMEOUT_S, policy.timeout_s * 3)
 
 
+#: What a compiler may have called the artefact of ``-o program``.
+BINARY_NAMES = ("program.exe", "program")
+
+
+def compiled_binary(workdir: Path) -> Path | None:
+    """Find the executable the compiler actually produced, by absolute path."""
+    for name in BINARY_NAMES:
+        candidate = workdir / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 class SandboxError(Exception):
     """Raised when a sandbox cannot be prepared at all."""
 
@@ -303,9 +316,22 @@ class SubprocessSandbox(Sandbox):
                         ),
                     )
 
-            proc = _spawn(
-                [c.format(tool=tool) for c in lang.run_cmd], workdir, request.stdin, self.policy
-            )
+            cmd = [c.format(tool=tool) for c in lang.run_cmd]
+            if lang.compile_cmd:
+                # The compiler decides the file name, not us: MinGW turns
+                # ``-o program`` into ``program.exe``, so running ``./program``
+                # fails with "cannot find the file specified" on Windows.
+                binary = compiled_binary(workdir)
+                if binary is None:
+                    return ExecResult(
+                        duration_ms=_ms(started),
+                        backend=self.name,
+                        isolation=self.isolation,
+                        error="컴파일은 끝났지만 실행 파일을 찾지 못했습니다.",
+                    )
+                cmd = [str(binary)]
+
+            proc = _spawn(cmd, workdir, request.stdin, self.policy)
 
         return self._finish(proc, started)
 
@@ -577,6 +603,7 @@ def _ms(started: float) -> int:
 
 
 __all__ = [
+    "BINARY_NAMES",
     "DEFAULT_TIMEOUT_S",
     "LANGUAGES",
     "MIN_COMPILE_TIMEOUT_S",
@@ -589,6 +616,7 @@ __all__ = [
     "SandboxPolicy",
     "SubprocessSandbox",
     "compile_timeout",
+    "compiled_binary",
     "describe_backends",
     "get_sandbox",
     "resolve_language",

@@ -190,6 +190,35 @@ class TestNeverRaises:
         assert done.returncode == 0, done.stderr
 
 
+class TestCompiledBinary:
+    """The compiler names the artefact, not us.
+
+    MinGW turns ``-o program`` into ``program.exe``, so running ``./program``
+    failed on Windows with "cannot find the file specified" — a platform where
+    C execution never worked. This runs everywhere, with no compiler needed.
+    """
+
+    def test_finds_a_windows_style_executable(self, tmp_path):
+        from edu_agent.security.sandbox import compiled_binary
+
+        (tmp_path / "program.exe").write_text("", encoding="utf-8")
+        found = compiled_binary(tmp_path)
+        assert found is not None and found.name == "program.exe"
+        assert found.is_absolute()
+
+    def test_finds_a_posix_style_executable(self, tmp_path):
+        from edu_agent.security.sandbox import compiled_binary
+
+        (tmp_path / "program").write_text("", encoding="utf-8")
+        found = compiled_binary(tmp_path)
+        assert found is not None and found.name == "program"
+
+    def test_returns_none_when_nothing_was_produced(self, tmp_path):
+        from edu_agent.security.sandbox import compiled_binary
+
+        assert compiled_binary(tmp_path) is None
+
+
 def test_compilation_gets_its_own_time_budget():
     """Charging a cold compiler to the learner's timeout reports the wrong failure."""
     from edu_agent.security.sandbox import MIN_COMPILE_TIMEOUT_S, compile_timeout
