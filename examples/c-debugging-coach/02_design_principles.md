@@ -2,11 +2,11 @@
 meta:
   schema_name: design_principles
   schema_version: 1
-  harness_version: 0.2.0
+  harness_version: 0.3.0
   status: confirmed
   language: ko
-  created_at: '2026-09-23T06:49:31.864693Z'
-  updated_at: '2026-09-23T06:49:31.947041Z'
+  created_at: '2026-09-23T07:53:42.039074Z'
+  updated_at: '2026-09-23T07:53:42.105284Z'
   content_hash: sha256:0705c0bccc73d0efe75c3897d6b03eeee4fbb9dce31673e057dc8489cf557b87
   input_hashes: {}
 theories_and_strategies:

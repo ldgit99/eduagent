@@ -1,6 +1,6 @@
 [project]
 name = "edu-agent-harness"
-version = "0.2.0"
+version = "0.3.0"
 description = "Pedagogy-Aware Educational AI Agent Engineering Harness — design, compile, build, simulate and evaluate educational AI agents from structured Markdown specifications."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -19,21 +19,34 @@ classifiers = [
   "Topic :: Education",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+# Upper bounds on everything. Without them, two people running the same install
+# command a month apart get different software, and the one who installed later
+# is the one who finds out. The caps are the next major after what is in
+# uv.lock, except typer, which is pre-1.0 and can break on a minor.
+#
+# `typer` is the one to watch: it vendors Click as `typer._click`, and `run_cli`
+# depends on `standalone_mode=False` plus Click's duck-typed `show()`.
 dependencies = [
-  "typer>=0.15",
-  "rich>=13.9",
-  "pydantic>=2.9",
-  "pyyaml>=6.0",
-  "jinja2>=3.1",
-  "python-dotenv>=1.0",
+  "typer>=0.15,<1.0",
+  "rich>=13.9,<16",
+  "pydantic>=2.9,<3",
+  "pyyaml>=6.0,<7",
+  "jinja2>=3.1,<4",
+  "python-dotenv>=1.0,<2",
 ]
 
 [project.optional-dependencies]
 # LLM providers are optional extras so that the core CLI stays light.
-openai = ["openai>=1.50"]
-anthropic = ["anthropic>=0.40"]
-gemini = ["google-genai>=1.0"]
-all-providers = ["openai>=1.50", "anthropic>=0.40", "google-genai>=1.0"]
+#
+# These have all crossed a major since the lower bounds were written (openai is
+# on 3.x, anthropic on 1.x) and kept working, because `providers/` is a thin
+# compatibility layer. The lower bounds are therefore older than anything that
+# has actually been tested; the upper bounds are what stop the next major from
+# arriving unannounced in the middle of someone's term.
+openai = ["openai>=1.50,<4"]
+anthropic = ["anthropic>=0.40,<2"]
+gemini = ["google-genai>=1.0,<3"]
+all-providers = ["openai>=1.50,<4", "anthropic>=0.40,<2", "google-genai>=1.0,<3"]
 
 [project.scripts]
 # Not ``cli:app``. Typer's app runs in standalone mode, where an abort is a

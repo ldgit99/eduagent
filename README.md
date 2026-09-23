@@ -38,10 +38,21 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 돌아가고 실제 모델을 부르지 못합니다.
 
 ```bash
-uv tool install "edu-agent-harness[openai] @ git+https://github.com/ldgit99/eduagent"
+uv tool install "edu-agent-harness[openai] @ git+https://github.com/ldgit99/eduagent@v0.3.0"
 ```
 
-나중에 최신 버전으로 올리려면 같은 명령에 `--force` 를 붙이면 됩니다.
+끝에 버전을 붙이는 것이 중요합니다. 붙이지 않으면 설치하는 날짜에 따라 서로 다른
+버전을 받게 됩니다 — 여러 사람이 같은 것을 써야 하는 상황이라면 곤란해집니다.
+
+새 버전으로 올리려면 번호를 바꾸고 `--force` 를 붙입니다. 공개된 버전은
+[Releases](https://github.com/ldgit99/eduagent/releases) 에서 볼 수 있습니다.
+
+```bash
+uv tool install --force "edu-agent-harness[openai] @ git+https://github.com/ldgit99/eduagent@v0.3.0"
+```
+
+아직 나오지 않은 최신 작업을 써 보고 싶다면 `@v0.3.0` 을 빼면 됩니다.
+수업 중에는 권하지 않습니다.
 
 ### 2. 잘 되는지 확인
 

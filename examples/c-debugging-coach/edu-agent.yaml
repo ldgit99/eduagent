@@ -1,7 +1,7 @@
 name: c-debugging-coach
 title: C 프로그래밍 디버깅 코치
 language: ko
-harness_version: 0.2.0
+harness_version: 0.3.0
 provider:
   kind: openai_compatible
   base_url: ''

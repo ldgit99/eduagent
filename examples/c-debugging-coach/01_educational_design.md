@@ -2,11 +2,11 @@
 meta:
   schema_name: educational_design
   schema_version: 1
-  harness_version: 0.2.0
+  harness_version: 0.3.0
   status: confirmed
   language: ko
-  created_at: '2026-09-23T06:49:31.863694Z'
-  updated_at: '2026-09-23T06:49:31.924473Z'
+  created_at: '2026-09-23T07:53:42.039074Z'
+  updated_at: '2026-09-23T07:53:42.091631Z'
   content_hash: sha256:4a6a938e710ed1d8586d853e6e37cdd5d47d7b289beb8af30d4eb6fe1b782e07
   input_hashes: {}
 title: C 프로그래밍 디버깅 코치

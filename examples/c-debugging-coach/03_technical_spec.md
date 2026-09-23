@@ -2,11 +2,11 @@
 meta:
   schema_name: technical_spec
   schema_version: 1
-  harness_version: 0.2.0
+  harness_version: 0.3.0
   status: confirmed
   language: ko
-  created_at: '2026-09-23T06:49:31.909396Z'
-  updated_at: '2026-09-23T06:49:31.985670Z'
+  created_at: '2026-09-23T07:53:42.081636Z'
+  updated_at: '2026-09-23T07:53:42.126804Z'
   content_hash: sha256:18ff0f5826576791a1928aee9e190eff737c7e2256a841f0efb3609d00310c4a
   input_hashes: {}
 execution_path: harness_runtime

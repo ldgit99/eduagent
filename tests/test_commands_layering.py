@@ -118,3 +118,36 @@ class TestTheInstalledEntryPoint:
     def test_stopping_is_a_message_not_a_traceback(self, monkeypatch, raised, expected_code):
         monkeypatch.setattr(cli, "app", lambda **kwargs: raised())
         assert cli.run_cli([]) == expected_code
+
+
+class TestTheVersionIsOneNumber:
+    """``_version.py`` and ``pyproject.toml`` both carry it, by hand.
+
+    ``edu-agent --version`` reads the module; pip and the wheel read the
+    metadata. Bump one and forget the other and the CLI reports a version that
+    was never released — which is worse than no version at all, because it looks
+    authoritative.
+    """
+
+    def _pyproject(self) -> dict:
+        import tomllib
+
+        path = Path(cli.__file__).resolve().parents[2] / "pyproject.toml"
+        if not path.exists():  # installed, not a checkout
+            pytest.skip("not running from a source checkout")
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+
+    def test_the_module_and_the_metadata_agree(self):
+        from edu_agent._version import __version__
+
+        assert __version__ == self._pyproject()["project"]["version"]
+
+    def test_every_runtime_dependency_has_an_upper_bound(self):
+        """An unbounded dependency means two people installing a week apart get
+        different software from the same command."""
+        project = self._pyproject()["project"]
+        specs = list(project["dependencies"])
+        for extra in project.get("optional-dependencies", {}).values():
+            specs.extend(extra)
+        unbounded = [s for s in specs if "<" not in s]
+        assert not unbounded, f"no upper bound on: {unbounded}"

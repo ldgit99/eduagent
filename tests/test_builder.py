@@ -215,3 +215,22 @@ def test_a_browser_class_is_recommended_the_service_export(example_docs):
 
     assert technical.execution_path is ExecutionPath.EXPORT_FASTAPI
     assert any("fastapi" in d.choice.lower() for d in technical.decisions)
+
+
+class TestExportsPinTheHarness:
+    """An export is opened months later, on another machine.
+
+    That is exactly when a dependency on a moving branch has moved. The exported
+    project must name the harness version that produced it.
+    """
+
+    def test_the_requirement_names_this_version(self):
+        from edu_agent._version import __version__
+        from edu_agent.builder.common import HARNESS_REQUIREMENT
+
+        assert HARNESS_REQUIREMENT.endswith(f"@v{__version__}")
+
+    def test_it_does_not_point_at_a_bare_branch(self):
+        from edu_agent.builder.common import HARNESS_REQUIREMENT
+
+        assert not HARNESS_REQUIREMENT.endswith("eduagent")

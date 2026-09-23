@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 
+from edu_agent._version import __version__
 from edu_agent.documents.render import render_template
 from edu_agent.runtime.prompt import build_system_prompt
 from edu_agent.schemas.agent import AgentSpec
@@ -25,10 +26,15 @@ from edu_agent.schemas.agent import AgentSpec
 #: What an exported project depends on. A git reference rather than a version
 #: range because the harness is not on PyPI yet — and an exported project whose
 #: very first ``pip install`` fails is worse than one that pins a moving branch.
-#: Swap this for ``edu-agent-harness[openai]>=0.2.0`` once it is published.
-HARNESS_REQUIREMENT = (
-    "edu-agent-harness[openai] @ git+https://github.com/ldgit99/eduagent"
-)
+#: Swap this for ``edu-agent-harness[openai]>=x.y`` once it is published.
+#:
+#: Pinned to the tag matching *this* harness, so an export keeps installing the
+#: harness that produced it. An export is handed over and opened months later,
+#: which is exactly when a floating branch has moved underneath it. Untagged
+#: development versions fall back to the branch, because pinning a tag that was
+#: never pushed would produce an export nobody can install.
+_REPO = "git+https://github.com/ldgit99/eduagent"
+HARNESS_REQUIREMENT = f"edu-agent-harness[openai] @ {_REPO}@v{__version__}"
 
 
 def render(template: str, /, **context: Any) -> str:
