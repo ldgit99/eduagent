@@ -399,6 +399,7 @@ def review(
     which: Annotated[str, typer.Argument(help="01 | 02 | 03 (비우면 다음 할 것)")] = "",
     no_llm: Annotated[bool, typer.Option("--no-llm", help="AI 도움 없이 진행합니다")] = False,
     mock: Annotated[bool, typer.Option("--mock", help="가짜 모델로 시험 실행합니다")] = False,
+    from_file: Annotated[str, typer.Option("--from", help="설계원리를 적어 둔 Markdown 파일 (02 전용)")] = "",
 ) -> None:
     """문서를 작성하거나 검토합니다. 질문 → 확인 → 저장."""
     project = _load_project()
@@ -411,10 +412,21 @@ def review(
     if slot is SPEC_DOC:
         ui.die("04 는 직접 작성하지 않습니다.", command="edu-agent compile")
 
-    _run_review(project, slot, no_llm=no_llm, mock=mock)
+    source = Path(from_file).expanduser() if from_file else None
+    if source is not None and slot.key != "principles":
+        ui.die("--from 은 02 설계원리에만 쓸 수 있습니다.", command="edu-agent review 02 --from " + from_file)
+
+    _run_review(project, slot, no_llm=no_llm, mock=mock, source=source)
 
 
-def _run_review(project: Project, slot: DocSlot, *, no_llm: bool, mock: bool) -> None:
+def _run_review(
+    project: Project,
+    slot: DocSlot,
+    *,
+    no_llm: bool,
+    mock: bool,
+    source: Path | None = None,
+) -> None:
     from edu_agent.documents.io import detect_drift, load_document
     from edu_agent.questionnaire import educational as q_edu
     from edu_agent.questionnaire import principles as q_pri
@@ -456,7 +468,9 @@ def _run_review(project: Project, slot: DocSlot, *, no_llm: bool, mock: bool) ->
             model = q_edu.run_educational(model, tasks_dir=project.tasks_dir)  # type: ignore[arg-type]
             summary = q_edu.summarize(model)  # type: ignore[arg-type]
         elif slot.key == "principles":
-            model = q_pri.run_principles(model, provider=provider)  # type: ignore[arg-type]
+            model = q_pri.run_principles(  # type: ignore[arg-type]
+                model, provider=provider, source=source
+            )
             summary = q_pri.summarize(model)  # type: ignore[arg-type]
         else:
             users = None

@@ -122,6 +122,13 @@
 {{ d.reflection.details }}
 {% endif %}
 
+## When to hand over to a person
+
+> What the agent should not try to handle alone. This sentence compiles into the
+> safety policy.
+
+{{ d.escalation | orblank }}
+
 {% if d.criteria %}
 ## Evaluation criteria
 

@@ -5,9 +5,9 @@ meta:
   harness_version: 0.2.0
   status: confirmed
   language: ko
-  created_at: '2026-09-23T05:05:03.950300Z'
-  updated_at: '2026-09-23T05:05:04.014538Z'
-  content_hash: sha256:59ba5b04fe9498087526bdba7c156091de03025e39bfa23f50757dd6223f8046
+  created_at: '2026-09-23T05:16:53.618423Z'
+  updated_at: '2026-09-23T05:16:53.907023Z'
+  content_hash: sha256:0705c0bccc73d0efe75c3897d6b03eeee4fbb9dce31673e057dc8489cf557b87
   input_hashes: {}
 theories_and_strategies:
 - 스캐폴딩과 점진적 소거(fading)
@@ -529,6 +529,7 @@ reflection:
   stance: 오류를 해결하면 무엇이 원인이었고 어떻게 찾았는지 학생이 설명하게 한다.
   details: ''
   principle_ids: []
+escalation: 여러 번 도와도 진전이 없거나 학습자가 정서적으로 힘들어 보이면 선생님께 물어보도록 안내합니다.
 criteria:
 - id: E01
   statement: 첫 도움 요청에 추론 확인 질문이 선행되었다
@@ -1000,6 +1001,12 @@ AI의 출력은 최종 산출물이 아니라 출발점으로 제시하고, 수�
 
 ## 성찰 및 자기조절 지원 원칙
 오류를 해결하면 무엇이 원인이었고 어떻게 찾았는지 학생이 설명하게 한다.
+
+## 사람에게 넘기는 기준
+
+> 에이전트가 혼자 감당하지 않아야 하는 상황입니다. 이 문장은 안전 정책으로 컴파일됩니다.
+
+여러 번 도와도 진전이 없거나 학습자가 정서적으로 힘들어 보이면 선생님께 물어보도록 안내합니다.
 
 ## 평가 기준
 

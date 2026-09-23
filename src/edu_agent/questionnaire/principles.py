@@ -15,8 +15,15 @@ and said yes. That confirmation step *is* the pedagogy of this tool.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from edu_agent import ui
 from edu_agent.principles.library_loader import LibraryEntry, library_entries, to_principle
+from edu_agent.principles.markdown_source import (
+    MarkdownSourceError,
+    extract_statements,
+    read_source,
+)
 from edu_agent.principles.structurer import structure_principle
 from edu_agent.providers.base import Provider
 from edu_agent.schemas.principles import (
@@ -35,26 +42,98 @@ _ANSWER_CONDITIONS = [
     Choice("5", "직접 입력", "custom"),
 ]
 
+#: Each structuring pass is a model call, and a teacher confirming twenty rules in
+#: one sitting stops reading them — which defeats the confirmation step.
+MAX_STRUCTURED = 6
 
-def run_principles(doc: DesignPrinciples, *, provider: Provider | None = None) -> DesignPrinciples:
+#: The theories a teacher is actually drawing on. This is the opening section of
+#: ``02_design_principles.md`` and was the one part of that document nothing ever
+#: filled in — the harness asked for rules without asking what they came from.
+_THEORY_CHOICES = [
+    Choice("1", "스캐폴딩과 점진적 소거(fading)", "스캐폴딩과 점진적 소거(fading)"),
+    Choice("2", "자기조절학습(SRL) — 계획·점검·성찰", "자기조절학습(SRL) — 계획·점검·성찰"),
+    Choice("3", "소크라테스식 질문법", "소크라테스식 질문법"),
+    Choice("4", "인지부하 이론", "인지부하 이론"),
+    Choice("5", "형성평가와 피드백 (지시적 + 메타인지 혼합)", "형성평가와 피드백 (지시적 + 메타인지 혼합)"),
+    Choice("6", "구성주의 / 발견학습", "구성주의 / 발견학습"),
+    Choice("7", "오개념 진단과 개념변화", "오개념 진단과 개념변화"),
+    Choice("8", "협력학습 · 동료 설명", "협력학습 · 동료 설명"),
+]
+
+_ESCALATION_CHOICES = [
+    Choice(
+        "1",
+        "여러 번 도와도 진전이 없을 때",
+        "여러 번 도와도 학습자가 진전을 보이지 않으면 선생님께 물어보도록 안내합니다.",
+    ),
+    Choice(
+        "2",
+        "학습자가 정서적으로 힘들어 보일 때",
+        "학습자가 좌절이나 불안을 강하게 드러내면 대화를 이어가기보다 선생님께 알리도록 안내합니다.",
+    ),
+    Choice(
+        "3",
+        "1번과 2번 모두 (권장)",
+        "여러 번 도와도 진전이 없거나 학습자가 정서적으로 힘들어 보이면 "
+        "선생님께 물어보도록 안내합니다.",
+    ),
+    Choice("4", "직접 입력", "custom"),
+]
+
+
+def run_principles(
+    doc: DesignPrinciples,
+    *,
+    provider: Provider | None = None,
+    source: Path | None = None,
+) -> DesignPrinciples:
     ui.header(
         "교육적 설계원리",
         "여기서 정한 내용이 에이전트의 실제 행동 규칙과 검사 기준이 됩니다.",
         step=(2, 4),
     )
 
+    _ask_theories(doc)
     _ask_answer_policy(doc)
     _ask_library(doc)
-    _ask_own(doc, provider)
+    _ask_own(doc, provider, source)
     _confirm_principles(doc)
     _ask_cross_cutting(doc)
     return doc
 
 
+# --- theories -------------------------------------------------------------
+def _ask_theories(doc: DesignPrinciples) -> None:
+    """Ask what the principles are *grounded in* before asking what they are.
+
+    A design principle with no stated basis cannot be argued with, and this is the
+    section an instructor reads first when marking the document.
+    """
+    ui.say()
+    ui.info("[bold]1/5 · 적용 이론 및 교수학습전략[/bold]")
+    ui.note("이 에이전트의 설계가 어떤 이론이나 전략에 기대고 있는지 고르세요.")
+    picked = ui.ask_multi(
+        "어떤 이론이나 교수학습전략을 적용하시겠습니까?",
+        _THEORY_CHOICES,
+        hint="여기서 고른 것이 문서의 첫 절이 되고, 각 설계원리의 근거가 됩니다.",
+        allow_empty=True,
+    )
+    doc.theories_and_strategies = list(picked)
+
+    while len(doc.theories_and_strategies) < 8:
+        extra = ui.ask_text(f"직접 추가 {len(doc.theories_and_strategies) + 1} (없으면 엔터)")
+        if not extra:
+            break
+        doc.theories_and_strategies.append(extra)
+
+    if not doc.theories_and_strategies:
+        ui.note("비워 두어도 진행되지만, 근거 없는 원리는 나중에 검토하기 어렵습니다.")
+
+
 # --- answer policy --------------------------------------------------------
 def _ask_answer_policy(doc: DesignPrinciples) -> None:
     ui.say()
-    ui.info("[bold]1/4 · 정답 제공 정책[/bold]")
+    ui.info("[bold]2/5 · 정답 제공 정책[/bold]")
     policy = ui.ask_choice(
         "AI가 학습자에게 정답을 바로 제공해도 됩니까?",
         [
@@ -109,7 +188,7 @@ def _ask_answer_policy(doc: DesignPrinciples) -> None:
 # --- library --------------------------------------------------------------
 def _ask_library(doc: DesignPrinciples) -> None:
     ui.say()
-    ui.info("[bold]2/4 · 설계원리 라이브러리[/bold]")
+    ui.info("[bold]3/5 · 설계원리 라이브러리[/bold]")
     ui.note("문헌 근거가 있는 원리입니다. 고른 뒤 자유롭게 수정할 수 있습니다.")
 
     entries = library_entries()
@@ -153,26 +232,32 @@ def _show_entry(entry: LibraryEntry) -> None:
 
 
 # --- own principles -------------------------------------------------------
-def _ask_own(doc: DesignPrinciples, provider: Provider | None) -> None:
+def _ask_own(
+    doc: DesignPrinciples, provider: Provider | None, source: Path | None = None
+) -> None:
     ui.say()
-    ui.info("[bold]3/4 · 직접 작성한 설계원리[/bold]")
-    ui.note("문헌 분석으로 도출한 원리가 있다면 여기에 붙여넣으세요. 원문은 그대로 보관됩니다.")
+    ui.info("[bold]4/5 · 직접 작성한 설계원리[/bold]")
+    ui.note("문헌 분석으로 도출한 원리가 있다면 가져오세요. 원문은 그대로 보관됩니다.")
 
-    has_own = ui.ask_yes_no("직접 작성하거나 붙여넣을 원리가 있나요?", default=False)
-    if not has_own:
-        return
-
-    text = ui.ask_text(
-        "설계원리를 입력하세요 (여러 개면 줄바꿈으로 구분)",
-        multiline=True,
-        default=doc.raw_user_text,
-    )
-    if not text.strip():
+    text = _load_from_file(source) if source is not None else _choose_source(doc)
+    if not text or not text.strip():
         return
     doc.raw_user_text = text
 
-    statements = [line.strip(" -*·") for line in text.splitlines() if line.strip(" -*·")]
+    statements = extract_statements(text)
     if not statements:
+        ui.warn("이 문서에서 설계원리로 읽을 만한 문장을 찾지 못했습니다.")
+        ui.note("원문은 문서에 그대로 보관됩니다. 제목(##)이나 목록(-)으로 구분해 주면 잘 읽습니다.")
+        return
+
+    ui.say()
+    ui.ok(f"{len(statements)}개의 원리를 읽었습니다.")
+    for i, statement in enumerate(statements[:8], 1):
+        ui.say(f"  {i}. {statement[:80]}{'…' if len(statement) > 80 else ''}")
+    if len(statements) > 8:
+        ui.note(f"… 외 {len(statements) - 8}개")
+    if not ui.ask_yes_no("이대로 구조화할까요?", default=True):
+        ui.note("원문만 저장했습니다. 파일을 고친 뒤 다시 실행하세요.")
         return
 
     if provider is None:
@@ -181,7 +266,7 @@ def _ask_own(doc: DesignPrinciples, provider: Provider | None) -> None:
         return
 
     used = doc.used_ids()
-    for statement in statements[:6]:
+    for statement in statements[:MAX_STRUCTURED]:
         ui.say()
         ui.info(f"구조화 중: {statement[:60]}")
         result = structure_principle(statement, provider, used, answer_condition=doc.answer_condition)
@@ -192,6 +277,53 @@ def _ask_own(doc: DesignPrinciples, provider: Provider | None) -> None:
         doc.principles.append(principle)
         doc.criteria.extend(criteria)
 
+    if len(statements) > MAX_STRUCTURED:
+        ui.say()
+        ui.note(
+            f"{len(statements)}개 중 {MAX_STRUCTURED}개만 구조화했습니다. "
+            "나머지는 원문에 남아 있으니 다시 실행하면 이어서 다룰 수 있습니다."
+        )
+
+
+def _choose_source(doc: DesignPrinciples) -> str:
+    """File or paste. A prepared document is the common case, so it comes first."""
+    how = ui.ask_choice(
+        "직접 작성한 설계원리가 있나요?",
+        [
+            Choice("1", "Markdown 파일에서 불러오기", "file"),
+            Choice("2", "여기에 붙여넣기", "paste"),
+            Choice("3", "없음", "none"),
+        ],
+        hint="파일로 두면 원문이 그대로 보관되고, 고친 뒤 다시 불러올 수 있습니다.",
+        default="3",
+    )
+    if how == "none":
+        return ""
+    if how == "paste":
+        return ui.ask_text(
+            "설계원리를 입력하세요 (여러 개면 줄바꿈으로 구분)",
+            multiline=True,
+            default=doc.raw_user_text,
+        )
+
+    while True:
+        raw = ui.ask_text("파일 경로 (예: principles.md, 취소하려면 엔터)")
+        if not raw.strip():
+            return ""
+        text = _load_from_file(Path(raw.strip().strip('"\'')))
+        if text:
+            return text
+
+
+def _load_from_file(path: Path) -> str:
+    try:
+        text = read_source(path)
+    except MarkdownSourceError as exc:
+        ui.fail(str(exc))
+        return ""
+    ui.ok(f"{path.name} 을 읽었습니다 ({len(text.splitlines())}줄).")
+    return text
+
 
 # --- confirmation ---------------------------------------------------------
 def _confirm_principles(doc: DesignPrinciples) -> None:
@@ -200,7 +332,7 @@ def _confirm_principles(doc: DesignPrinciples) -> None:
         return
 
     ui.say()
-    ui.info("[bold]4/4 · 규칙 확인[/bold]")
+    ui.info("[bold]5/5 · 규칙 확인[/bold]")
     ui.note(
         "각 원리가 '어떤 상황에서 무엇을 하고, 무엇을 하지 않는지'로 바뀌었습니다. "
         "의도와 맞는지 확인해 주세요. 확인하지 않으면 컴파일에 포함되지 않습니다."
@@ -284,6 +416,27 @@ def _ask_cross_cutting(doc: DesignPrinciples) -> None:
     doc.reflection.stance = ui.ask_text(
         "성찰: 학습자는 언제 무엇을 돌아봐야 합니까?", default=doc.reflection.stance
     )
+    _ask_escalation(doc)
+
+
+def _ask_escalation(doc: DesignPrinciples) -> None:
+    """When should the agent stop and hand the learner to a person?
+
+    Deciding this is part of designing the agent, not a detail to be defaulted:
+    an agent that never gives up is as much a design failure as one that gives
+    up immediately. Until now the compiler wrote one fixed sentence for everyone.
+    """
+    ui.say()
+    ui.note("에이전트가 혼자 감당하면 안 되는 상황도 설계에 들어갑니다.")
+    choice = ui.ask_choice(
+        "언제 학습자를 선생님에게 넘겨야 합니까?",
+        _ESCALATION_CHOICES,
+        hint="이 문장은 에이전트의 안전 정책이 되어 시스템 프롬프트에 들어갑니다.",
+        default="3",
+    )
+    if choice == "custom":
+        choice = ui.ask_text("어떤 상황에서 넘겨야 하는지 한 문장으로 적어 주세요")
+    doc.escalation = choice or ""
 
 
 def summarize(doc: DesignPrinciples) -> str:

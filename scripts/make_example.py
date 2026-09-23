@@ -222,6 +222,10 @@ def build_principles():
     ]
     doc.answer_policy = AnswerPolicy.CONDITIONAL
     doc.answer_condition = "attempts >= 3 or stuck_turns >= 2"
+    doc.escalation = (
+        "여러 번 도와도 진전이 없거나 학습자가 정서적으로 힘들어 보이면 "
+        "선생님께 물어보도록 안내합니다."
+    )
 
     wanted = [
         "lib.reasoning_first",

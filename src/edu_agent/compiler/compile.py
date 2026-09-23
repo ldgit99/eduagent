@@ -53,6 +53,9 @@ PEDAGOGICAL_SAFETY: tuple[str, ...] = (
     "학습자가 오래 막혀 있으면 도움 수준을 올립니다. 도움을 미루는 것도 문제입니다.",
 )
 
+#: Used only when document 02 predates the escalation question.
+DEFAULT_ESCALATION = "학습자가 도움이 더 필요해 보이면 선생님께 물어보도록 안내합니다."
+
 
 @dataclass(slots=True)
 class CompileResult:
@@ -97,7 +100,7 @@ def compile_spec(
     _fill_gates(spec, principles)
     _fill_policies(spec, principles)
     _fill_phases(spec, principles)
-    _fill_tools_memory_safety(spec, technical)
+    _fill_tools_memory_safety(spec, technical, principles)
     _fill_criteria(spec, principles)
     _fill_scenarios(spec, educational, principles, personas or default_personas())
     _fill_traceability(spec, principles)
@@ -272,7 +275,9 @@ def _fill_phases(spec: AgentSpec, pr: DesignPrinciples) -> None:
     spec.state_variables = list(DEFAULT_STATE_RULES)
 
 
-def _fill_tools_memory_safety(spec: AgentSpec, tech: TechnicalSpec) -> None:
+def _fill_tools_memory_safety(
+    spec: AgentSpec, tech: TechnicalSpec, principles: DesignPrinciples
+) -> None:
     spec.tools = [
         ToolPolicy(
             name=t.kind.value,
@@ -293,7 +298,10 @@ def _fill_tools_memory_safety(spec: AgentSpec, tech: TechnicalSpec) -> None:
     spec.safety = SafetyPolicy(
         general_rules=list(GENERAL_SAFETY),
         pedagogical_rules=list(PEDAGOGICAL_SAFETY),
-        escalation="학습자가 도움이 더 필요해 보이면 선생님께 물어보도록 안내합니다.",
+        # When to stop and hand the learner to a person is a design decision, so
+        # it comes from document 02. The fallback is only for specs written before
+        # the question existed.
+        escalation=principles.escalation or DEFAULT_ESCALATION,
     )
 
 

@@ -161,6 +161,22 @@ edu-agent calibrate --tune
 에 판(version)을 붙여 따로 쌓이므로, 문헌에서 온 기준과 이 수업에서 온 기준이 섞이지
 않습니다.
 
+### 설계원리는 파일로 가져올 수 있습니다
+
+문헌 분석으로 정리한 원리가 이미 문서에 있다면, 터미널에 붙여넣지 말고 그대로 주세요.
+
+```bash
+edu-agent review 02 --from principles.md
+```
+
+`##` 제목으로 나눈 문서든 `-` 목록이든 읽습니다. 코드 블록과 목차·참고문헌 절은
+원리로 세지 않습니다. 서식은 [`docs/principles-template.md`](docs/principles-template.md)
+에 있습니다.
+
+읽은 뒤에는 **원리마다 "이 규칙이 의도와 맞습니까?"를 묻습니다.** 확인하지 않은 원리는
+컴파일에 들어가지 않고, **원문은 문서에 그대로 보관**되어 AI가 만든 규칙과 대조할 수
+있습니다.
+
 ### 도구도 조건을 지켜야 씁니다
 
 `03_technical_spec.md` 에서 "AI가 코드를 실제로 실행해야 합니까?"에 예라고 하면
@@ -205,7 +221,7 @@ tools:
 | `edu-agent doctor` | 환경 점검. 안 될 때 가장 먼저 |
 | `edu-agent init` | 새 프로젝트 만들기. `--lang en` 으로 영어 문서 |
 | `edu-agent status` | 어디까지 왔고 다음에 뭘 할지 |
-| `edu-agent review 01\|02\|03` | 문서 작성·검토 (질문 → 확인 → 저장) |
+| `edu-agent review 01\|02\|03` | 문서 작성·검토 (질문 → 확인 → 저장). `02 --from p.md` 로 설계원리 파일 불러오기 |
 | `edu-agent compile` | 세 문서를 합쳐 `04_agent_spec.md` 생성 |
 | `edu-agent run` | 에이전트와 대화. `--web` 으로 브라우저에서, `--persona S04` 로 시뮬레이션 학생과 |
 | `edu-agent test` | 시뮬레이션 + 9개 영역 평가. `--regrade` 로 재채점(무료) |
@@ -304,7 +320,7 @@ edu-agent run --web
 - ✅ judge 보정 순환: 사람 채점 → 루브릭 오버레이 → 홀드아웃 검증 → 회귀 시 롤백
 - ✅ 개선 루프: 진단 → 제안 → 승인 → 재검증 → 회귀 게이트 → 롤백
 - ✅ 보고서, 내보내기(CLI / FastAPI), 예제 프로젝트
-- ✅ 테스트 350개, Windows/macOS/Linux CI
+- ✅ 테스트 377개, Windows/macOS/Linux CI
 
 ## 다음 단계
 

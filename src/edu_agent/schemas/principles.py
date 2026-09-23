@@ -369,6 +369,10 @@ class DesignPrinciples(DocumentModel):
     scaffolding: PolicyStatement = Field(default_factory=PolicyStatement)
     feedback: PolicyStatement = Field(default_factory=PolicyStatement)
     reflection: PolicyStatement = Field(default_factory=PolicyStatement)
+    escalation: str = Field(
+        default="",
+        description="에이전트가 혼자 감당하지 않고 사람에게 넘겨야 하는 상황 (§14 안전 정책으로 컴파일됨)",
+    )
     criteria: list[EvaluationCriterion] = Field(default_factory=list)
     raw_user_text: str = Field(
         default="", description="사용자가 붙여넣은 원문 (출처 추적용, 절대 버리지 않음)"

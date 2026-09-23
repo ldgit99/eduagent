@@ -5,13 +5,13 @@ meta:
   harness_version: 0.2.0
   status: compiled
   language: ko
-  created_at: '2026-09-23T05:05:04.071955Z'
-  updated_at: '2026-09-23T05:05:04.093604Z'
-  content_hash: sha256:a89726d108bab47d1ad084b18c3953d4bab1af2e68db864f83c8bba5693a78b3
+  created_at: '2026-09-23T05:16:53.982395Z'
+  updated_at: '2026-09-23T05:16:54.025620Z'
+  content_hash: sha256:da993c3ebf8e1662f209ada63212ec8709f63bdcf22b7272e3d47d2eec545729
   input_hashes:
-    01_educational_design.md: sha256:b4a6d3e74fa9732bf356b2fb3c85d0cb3a8891241a6ce80fa00a59f9f58a7515
-    02_design_principles.md: sha256:e04076162b707e0e9968aac2cd6444e36dc5f022e64ca0fbcb43b5d2b9b11657
-    03_technical_spec.md: sha256:5f986098c39fe6706a691b150ea27f294521afeaab94369b8b2f73f99a4d862d
+    01_educational_design.md: sha256:3a5953a4a91b344f3896b83fed6bcf990eef3dfbd9fbd0a8ba7e354dd5168f57
+    02_design_principles.md: sha256:7a4bab0181c8f2dfdaf5d41b5e305c733cfd0a351802de5d48d15e04adb0e622
+    03_technical_spec.md: sha256:43230c6637224b4e584e1be6dd2ae7a8304a3e6fdfb3a955851f854365386702
 purpose: 프로그램에 오류가 생겼을 때 스스로 원인을 분석하지 않고 AI에게 완성된 정답 코드를 바로 요구한다.
 target_learner: C언어를 처음 배우는 중·고등학생, 중학교 3학년 ~ 고등학교 1학년, 정보/컴퓨터과학, C언어 기초 문법과 디버깅
 learning_goals:
@@ -555,7 +555,7 @@ safety:
   - 학습자가 틀린 주장을 강하게 하더라도 동의하지 않고, 함께 확인할 방법을 제안합니다.
   - 학습자가 오래 막혀 있으면 도움 수준을 올립니다. 도움을 미루는 것도 문제입니다.
   pii_action: 감지 시 저장하지 않고 안내한다
-  escalation: 학습자가 도움이 더 필요해 보이면 선생님께 물어보도록 안내합니다.
+  escalation: 여러 번 도와도 진전이 없거나 학습자가 정서적으로 힘들어 보이면 선생님께 물어보도록 안내합니다.
 system_prompt: '당신은 정보/컴퓨터과학 학습을 돕는 코치. 정답을 대신 말해 주지 않고 학습자가 스스로 찾도록 돕습니다.
 
 
@@ -1169,7 +1169,7 @@ C언어를 처음 배우는 중·고등학생, 중학교 3학년 ~ 고등학교 
 - 학습자가 오래 막혀 있으면 도움 수준을 올립니다. 도움을 미루는 것도 문제입니다.
 
 - 개인정보: 감지 시 저장하지 않고 안내한다
-- 한계 상황: 학습자가 도움이 더 필요해 보이면 선생님께 물어보도록 안내합니다.
+- 한계 상황: 여러 번 도와도 진전이 없거나 학습자가 정서적으로 힘들어 보이면 선생님께 물어보도록 안내합니다.
 
 ## 15. 시스템 프롬프트
 

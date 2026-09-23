@@ -121,6 +121,12 @@
 {{ d.reflection.details }}
 {% endif %}
 
+## 사람에게 넘기는 기준
+
+> 에이전트가 혼자 감당하지 않아야 하는 상황입니다. 이 문장은 안전 정책으로 컴파일됩니다.
+
+{{ d.escalation | orblank }}
+
 {% if d.criteria %}
 ## 평가 기준
 
