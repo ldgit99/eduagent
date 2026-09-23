@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from edu_agent.evaluator.calibration import HumanRating
+from edu_agent.evaluator.items import RatedItem
 from edu_agent.evaluator.judge import Judge, RubricOverlay
 from edu_agent.evaluator.judge_tuning import (
     MIN_RATINGS,
@@ -114,8 +115,8 @@ class TestSplit:
 
     def test_no_item_is_in_both_halves(self, ratings):
         tune, holdout = split_ratings(ratings)
-        keys = {(r.session_id, r.turn_index, r.metric) for r in tune}
-        assert not keys & {(r.session_id, r.turn_index, r.metric) for r in holdout}
+        keys = {RatedItem.of(r) for r in tune}
+        assert not keys & {RatedItem.of(r) for r in holdout}
 
     def test_is_deterministic(self, ratings):
         first = [r.turn_index for r in split_ratings(ratings)[0]]
@@ -135,7 +136,7 @@ class TestSplit:
 # --- building -------------------------------------------------------------
 class TestBuildOverlay:
     def test_uses_human_labelled_turns_as_examples(self, ratings, trace):
-        labels = {(r.session_id, r.turn_index, r.metric): Label.YES for r in ratings}
+        labels = {RatedItem.of(r): Label.YES for r in ratings}
         overlay = build_overlay(ratings, labels, [trace])
 
         metric = overlay.metrics[METRIC]
@@ -143,13 +144,13 @@ class TestBuildOverlay:
         assert all(e.tutor_message for e in metric.exemplars)
 
     def test_prefers_the_turns_the_judge_got_wrong(self, ratings, trace):
-        labels = {(r.session_id, r.turn_index, r.metric): Label.YES for r in ratings}
+        labels = {RatedItem.of(r): Label.YES for r in ratings}
         overlay = build_overlay(ratings, labels, [trace])
         # Every disagreement here is a human "no"; those are the useful examples.
         assert all(e.label is Label.NO for e in overlay.metrics[METRIC].exemplars)
 
     def test_names_the_direction_of_the_error(self, ratings, trace):
-        labels = {(r.session_id, r.turn_index, r.metric): Label.YES for r in ratings}
+        labels = {RatedItem.of(r): Label.YES for r in ratings}
         overlay = build_overlay(ratings, labels, [trace])
         assert "관대" in overlay.metrics[METRIC].note
 
@@ -158,12 +159,12 @@ class TestBuildOverlay:
             HumanRating(session_id="s_tune", turn_index=i, metric=METRIC, label=Label.YES)
             for i in range(6)
         ]
-        labels = {(r.session_id, r.turn_index, r.metric): Label.NO for r in strict}
+        labels = {RatedItem.of(r): Label.NO for r in strict}
         overlay = build_overlay(strict, labels, [trace])
         assert "엄격" in overlay.metrics[METRIC].note
 
     def test_version_increments_from_the_previous_overlay(self, ratings, trace):
-        labels = {(r.session_id, r.turn_index, r.metric): Label.YES for r in ratings}
+        labels = {RatedItem.of(r): Label.YES for r in ratings}
         first = build_overlay(ratings, labels, [trace])
         second = build_overlay(ratings, labels, [trace], previous=first)
         assert (first.version, second.version) == (1, 2)
@@ -202,7 +203,7 @@ class TestTuneJudge:
         exemplar_texts = {
             e.tutor_message for m in result.overlay.metrics.values() for e in m.exemplars
         }
-        holdout_turns = {d.key[1] for d in result.disagreements}
+        holdout_turns = {d.key.turn_index for d in result.disagreements}
         # Not a proof of independence on its own, but it catches the obvious bug:
         # a holdout that is really just the tuning set again.
         assert result.n_holdout > 0
@@ -249,7 +250,7 @@ class TestScoreTurn:
         assert label is Label.PARTIAL
 
     def test_overlay_reaches_the_prompt(self, trace, truth, ratings):
-        labels = {(r.session_id, r.turn_index, r.metric): Label.YES for r in ratings}
+        labels = {RatedItem.of(r): Label.YES for r in ratings}
         overlay = build_overlay(ratings, labels, [trace])
         model = ScriptedJudge(improves=False, truth=truth)
         Judge(model, order_swap=False, overlay=overlay).score_turn(METRIC, trace, 5)
@@ -261,7 +262,7 @@ class TestScoreTurn:
 # --- persistence ----------------------------------------------------------
 class TestPersistence:
     def test_overlay_round_trips(self, tmp_path, ratings, trace):
-        labels = {(r.session_id, r.turn_index, r.metric): Label.YES for r in ratings}
+        labels = {RatedItem.of(r): Label.YES for r in ratings}
         overlay = build_overlay(ratings, labels, [trace])
         path = save_overlay(tmp_path / "judge_overlay.yaml", overlay)
         reloaded = load_overlay(path)
@@ -287,7 +288,7 @@ class TestPersistence:
 
 
 def test_find_disagreements_carries_the_evidence(ratings, trace):
-    labels = {(r.session_id, r.turn_index, r.metric): Label.YES for r in ratings}
+    labels = {RatedItem.of(r): Label.YES for r in ratings}
     found = find_disagreements(ratings, labels, [trace])
 
     assert found

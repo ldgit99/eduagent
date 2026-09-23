@@ -13,6 +13,7 @@ from edu_agent.evaluator.calibration import (
     write_worksheet,
 )
 from edu_agent.evaluator.deterministic import NOT_APPLICABLE, run_check
+from edu_agent.evaluator.items import RatedItem
 from edu_agent.evaluator.runner import EvaluationInput, evaluate
 from edu_agent.schemas.evaluation import Dimension, Label
 from edu_agent.schemas.principles import AgentAction, TriggerEvent
@@ -230,7 +231,10 @@ class TestCalibration:
             HumanRating(session_id="s1", turn_index=0, metric="m", label=Label.YES),
             HumanRating(session_id="s1", turn_index=1, metric="m", label=Label.NO),
         ]
-        judge = {("s1", 0, "m"): Label.YES, ("s1", 1, "m"): Label.NO}
+        judge = {
+            RatedItem("s1", 0, "m"): Label.YES,
+            RatedItem("s1", 1, "m"): Label.NO,
+        }
         calib = compute_calibration(human, judge)
         assert calib.n == 2
         assert calib.trustworthy

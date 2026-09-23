@@ -949,12 +949,13 @@ def _judge_overlay(project: Project):
 
 def _attach_calibration(project: Project, report) -> None:
     from edu_agent.evaluator.calibration import compute_calibration, load_ratings
+    from edu_agent.evaluator.items import RatedItem
 
     ratings = load_ratings(project.evals_dir / "human_ratings.json")
     if not ratings:
         return
     judge_labels = {
-        (e.session_id, e.turn_index, c.metric): c.label
+        RatedItem.of(e, c.metric): c.label
         for c in report.checks
         for e in c.evidence
     }
@@ -970,6 +971,7 @@ def _stored_judge_labels(project: Project) -> dict:
     """Labels ``calibrate --submit`` collected on exactly the rated turns."""
     import json
 
+    from edu_agent.evaluator.items import RatedItem
     from edu_agent.schemas.evaluation import Label
 
     path = project.evals_dir / "judge_labels.json"
@@ -980,10 +982,12 @@ def _stored_judge_labels(project: Project) -> dict:
     except json.JSONDecodeError:
         return {}
     labels = {}
-    for key, value in raw.items():
-        session, turn, metric = key.rsplit("|", 2)
+    for raw_key, value in raw.items():
+        item = RatedItem.from_key(raw_key)
+        if item is None:
+            continue
         try:
-            labels[(session, int(turn), metric)] = Label(value)
+            labels[item] = Label(value)
         except ValueError:
             continue
     return labels
@@ -1087,7 +1091,7 @@ def _submit_calibration(project: Project, ratings, *, run: str, no_llm: bool, mo
         labels = judge_labels_for(judge, traces, ratings)
         (project.evals_dir / "judge_labels.json").write_text(
             json.dumps(
-                {"|".join(map(str, key)): value.value for key, value in labels.items()},
+                {item.key(): value.value for item, value in labels.items()},
                 ensure_ascii=False,
                 indent=2,
             ),
@@ -1119,6 +1123,7 @@ def _submit_calibration(project: Project, ratings, *, run: str, no_llm: bool, mo
 
 def _labels_from_report(project: Project, run_id: str) -> dict:
     """``--no-llm`` fallback: reuse whatever the last report already decided."""
+    from edu_agent.evaluator.items import RatedItem
     from edu_agent.schemas.evaluation import EvaluationReport
     from edu_agent.storage.jsonl import RunPaths
 
@@ -1127,7 +1132,7 @@ def _labels_from_report(project: Project, run_id: str) -> dict:
         return {}
     report = EvaluationReport.model_validate_json(report_path.read_text(encoding="utf-8"))
     return {
-        (e.session_id, e.turn_index, c.metric): c.label
+        RatedItem.of(e, c.metric): c.label
         for c in report.checks
         for e in c.evidence
     }
@@ -1177,7 +1182,7 @@ def _tune_judge(project: Project, *, run: str, no_llm: bool, mock: bool) -> None
         ui.info(f"다듬기 전 일치도: κ = {result.kappa_before:.2f} (검증 {result.n_holdout}건)")
     for item in result.disagreements[:3]:
         ui.say()
-        ui.say(f"  [dim]{item.metric} · 턴 {item.key[1]}[/dim]")
+        ui.say(f"  [dim]{item.metric} · 턴 {item.key.turn_index}[/dim]")
         ui.say(f"  사람 [bold]{item.human.value}[/bold] ↔ AI [bold]{item.judge.value}[/bold]")
         if item.tutor_message:
             ui.note(f"튜터: {item.tutor_message}")

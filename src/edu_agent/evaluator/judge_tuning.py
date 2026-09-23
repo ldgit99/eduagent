@@ -27,6 +27,7 @@ from pathlib import Path
 import yaml
 
 from edu_agent.evaluator.calibration import HumanRating, cohens_kappa
+from edu_agent.evaluator.items import RatedItem
 from edu_agent.evaluator.judge import (
     Judge,
     MetricOverlay,
@@ -48,7 +49,8 @@ MIN_RATINGS = 6
 OVERLAY_NAME = "judge_overlay.yaml"
 HISTORY_NAME = "judge_tuning_history.json"
 
-ItemKey = tuple[str, int, str]
+#: Kept as a name so signatures read the same; the identity itself now has a type.
+ItemKey = RatedItem
 
 
 @dataclass(slots=True)
@@ -122,7 +124,7 @@ def judge_labels_for(
         trace = by_session.get(rating.session_id)
         if trace is None:
             continue
-        labels[(rating.session_id, rating.turn_index, rating.metric)] = judge.score_turn(
+        labels[RatedItem.of(rating)] = judge.score_turn(
             rating.metric, trace, rating.turn_index
         )
     return labels
@@ -136,7 +138,7 @@ def find_disagreements(
     by_session = {trace.session_id: trace for trace in traces}
     out: list[Disagreement] = []
     for rating in ratings:
-        key = (rating.session_id, rating.turn_index, rating.metric)
+        key = RatedItem.of(rating)
         judged = judge_labels.get(key)
         if judged is None or judged is rating.label:
             continue
@@ -373,7 +375,7 @@ def _favourability(label: Label) -> int:
 
 
 def _key(rating: HumanRating) -> ItemKey:
-    return (rating.session_id, rating.turn_index, rating.metric)
+    return RatedItem.of(rating)
 
 
 def _rating_key(rating: HumanRating) -> tuple[str, str, int]:

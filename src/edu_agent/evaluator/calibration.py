@@ -20,6 +20,7 @@ from pathlib import Path
 import yaml
 from pydantic import Field
 
+from edu_agent.evaluator.items import RatedItem
 from edu_agent.schemas.common import HarnessModel
 from edu_agent.schemas.evaluation import Calibration, Label
 from edu_agent.schemas.trace import SessionTrace
@@ -79,7 +80,7 @@ def cohens_kappa(a: list[str], b: list[str]) -> float | None:
 def draw_samples(
     traces: list[SessionTrace],
     metrics: list[str],
-    judge_labels: dict[tuple[str, int, str], Label] | None = None,
+    judge_labels: dict[RatedItem, Label] | None = None,
     n: int = 20,
 ) -> CalibrationSet:
     """Pick a spread of turns for a human to rate.
@@ -113,7 +114,9 @@ def draw_samples(
                 question=rubric.question if rubric else metric,
                 learner_message=truncate(turn.learner_message, 300),
                 tutor_message=truncate(turn.tutor_message, 500),
-                judge_label=judge_labels.get((trace.session_id, turn.turn_index, metric)),
+                judge_label=judge_labels.get(
+                    RatedItem(trace.session_id, turn.turn_index, metric)
+                ),
             )
         )
     return CalibrationSet(samples=samples)
@@ -225,14 +228,14 @@ def _yaml_blocks(text: str) -> list[str]:
 
 def compute_calibration(
     human: list[HumanRating],
-    judge: dict[tuple[str, int, str], Label],
+    judge: dict[RatedItem, Label],
     threshold: float = 0.7,
 ) -> Calibration:
     """Compare human and judge labels on the same items."""
     pairs = [
-        (r.label.value, judge[(r.session_id, r.turn_index, r.metric)].value)
+        (r.label.value, judge[RatedItem.of(r)].value)
         for r in human
-        if (r.session_id, r.turn_index, r.metric) in judge
+        if RatedItem.of(r) in judge
     ]
     calib = Calibration(n=len(pairs), threshold=threshold, rated_at=datetime.now(UTC))
     if not pairs:
@@ -242,7 +245,7 @@ def compute_calibration(
 
     by_metric: dict[str, list[tuple[str, str]]] = {}
     for r in human:
-        key = (r.session_id, r.turn_index, r.metric)
+        key = RatedItem.of(r)
         if key in judge:
             by_metric.setdefault(r.metric, []).append((r.label.value, judge[key].value))
     for metric, items in by_metric.items():
