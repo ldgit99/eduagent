@@ -5,9 +5,9 @@ meta:
   harness_version: 0.1.0
   status: confirmed
   language: ko
-  created_at: '2026-09-23T04:00:11.293201Z'
-  updated_at: '2026-09-23T04:00:11.338730Z'
-  content_hash: sha256:607f21a7362e15b021d5c51f8a7dd9eebb64fb49abe04e07ce2fc9eaead7be94
+  created_at: '2026-09-23T04:00:13.642225Z'
+  updated_at: '2026-09-23T04:00:13.691162Z'
+  content_hash: sha256:581f1ad194a408812da3fcf3d8db6022ec5ddeea50e0cbf01aee62eac46bfbe5
   input_hashes: {}
 execution_path: harness_runtime
 requirements:
@@ -35,8 +35,8 @@ backend:
   language: python
   framework: none
 interface:
-  kind: gradio
-  notes: edu-agent run --web 로 로컬 웹 채팅을 엽니다.
+  kind: web_chat
+  notes: edu-agent run --web 로 로컬 웹 채팅을 엽니다. 추가 설치가 필요 없습니다.
 data_rag:
   required: false
   sources: []
@@ -149,7 +149,7 @@ decisions:
 
 ## 4. 사용 화면
 
-- gradio — edu-agent run --web 로 로컬 웹 채팅을 엽니다.
+- web_chat — edu-agent run --web 로 로컬 웹 채팅을 엽니다. 추가 설치가 필요 없습니다.
 ## 5. 자료 검색 (RAG)
 
 - **필요 여부**: 아니오

@@ -1273,20 +1273,42 @@ def view(
 @app.command()
 def build(
     out: Annotated[str, typer.Option("--out", help="내보낼 위치")] = "",
-    target: Annotated[str, typer.Option("--target", help="cli")] = "cli",
+    target: Annotated[str, typer.Option("--target", help="cli | fastapi (비우면 03 문서를 따릅니다)")] = "",
 ) -> None:
     """독립 실행 프로젝트로 내보냅니다 (선택 기능)."""
-    from edu_agent.builder.export_cli import export_cli
+    from edu_agent.builder import TARGETS, export
 
     project = _load_project()
     spec = _load_spec(project, warn_stale=False)
-    if target != "cli":
-        ui.die(f"'{target}' 내보내기는 아직 지원하지 않습니다.", hint="현재는 --target cli 만 가능합니다.")
+    target = (target or _target_from_technical(project)).lower()
+    if target not in TARGETS:
+        ui.die(
+            f"'{target}' 내보내기는 지원하지 않습니다.",
+            hint=f"가능한 값: {', '.join(sorted(TARGETS))}",
+        )
 
     destination = Path(out) if out else project.root / "generated-agent"
-    export_cli(project, spec, destination)
-    ui.ok(f"내보냈습니다: {destination}")
+    export(target, project, spec, destination)
+    ui.ok(f"내보냈습니다 ({target}): {destination}")
     ui.note("이 폴더의 README.md 를 읽고 실행하세요.")
+    ui.note("설계를 바꾸려면 이 폴더가 아니라 원래 문서를 고치고 다시 내보내세요.")
+
+
+def _target_from_technical(project: Project) -> str:
+    """``03_technical_spec.md`` already recorded how this agent should run."""
+    from edu_agent.schemas.technical import ExecutionPath, TechnicalSpec
+
+    path = project.doc_path(DOC_FILES[2])
+    if not path.exists():
+        return "cli"
+    try:
+        from edu_agent.documents.io import load_document
+
+        tech, _ = load_document(path, TechnicalSpec)
+    except Exception:
+        return "cli"
+    assert isinstance(tech, TechnicalSpec)
+    return "fastapi" if tech.execution_path is ExecutionPath.EXPORT_FASTAPI else "cli"
 
 
 def _entry() -> None:

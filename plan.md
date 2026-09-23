@@ -601,17 +601,27 @@ v2에서 새로 도입한 핵심 모듈이다. 04 문서를 읽어 에이전트�
 - 게이트가 차단하면 최대 N회 재생성하고, 실패하면 안전한 기본 응답(예: 추론 질문)으로 대체한 뒤 trace에 기록한다.
 - 게이트 판정은 모두 trace에 남아 평가기의 **CSR(제약별 준수율)** 계산에 쓰인다[SysBench].
 
-### 11.3 인터페이스
+### 11.3 인터페이스 **[구현됨]**
 
 - 기본: Rich 기반 CLI 채팅.
-- `--web`: 로컬 단일 파일 웹 채팅(gradio 또는 streamlit extra). 학생이 브라우저에서 자기 에이전트를 체험한다.
+- `--web`: 로컬 단일 파일 웹 채팅. 학생이 브라우저에서 자기 에이전트를 체험한다.
 - `--persona S03`: 시뮬레이션 학생을 상대로 자동 대화(§13)를 눈으로 보기.
+
+**계획과 달라진 점**: gradio/streamlit extra 대신 `http.server` 로 구현했다(ADR-14).
+§1.4가 요구하는 "설치 장벽 최소화"와 정면으로 충돌하기 때문이다 — 자기 에이전트를
+브라우저에서 보려고 수백 MB를 더 받아야 한다면 1~2주차 데모에서 쓸 수 없다. 부수 효과로
+테스트가 실제 서버를 띄워 HTTP로 검증한다(오프라인, CI 포함).
+
+접근 제어는 로컬 도구 수준으로만 건다: `127.0.0.1` 바인딩, 주소에 실린 1회용 토큰을
+헤더로 요구(같은 브라우저의 다른 페이지가 학습자의 튜터를 조작하지 못하게), JSON
+content-type 강제. 대화는 종료 시 `.edu-agent/runs/` 에 저장되어 `--regrade` 대상이 된다.
 
 ---
 
-## 12. Builder (`edu-agent build`) — 내보내기
+## 12. Builder (`edu-agent build`) — 내보내기 **[구현됨: cli, fastapi]**
 
-MVP에서는 `export_cli`만 안정적으로 지원한다. 생성 프로젝트는 하네스의 `edu_agent.runtime`을 라이브러리로 의존한다(코드가 작아지고 게이트 로직이 복제되지 않음; 완전 독립 vendoring은 후순위).
+`export_cli`와 `export_fastapi` 두 타깃을 지원한다. 둘은 **같은 트리**를 쓰고 진입점만 다르다
+(`builder/common.py`가 spec·prompts·policies·tools·safety·evals·tests를 쓴다). 생성 프로젝트는 하네스의 `edu_agent.runtime`을 라이브러리로 의존한다(코드가 작아지고 게이트 로직이 복제되지 않음; 완전 독립 vendoring은 후순위).
 
 ```text
 generated-agent/
@@ -629,7 +639,15 @@ generated-agent/
 └── README.md
 ```
 
-FastAPI·Next.js 타깃은 adapter 구조만 준비하고 구현은 후순위로 둔다.
+`--target` 을 비우면 `03_technical_spec.md` 의 `execution_path` 를 따른다. 그 값은 추천기가
+정한다: 브라우저를 쓰면서 예상 사용자가 30명을 넘으면 `export_fastapi`, 아니면
+`harness_runtime`(=`export_cli`). 한 프로세스가 한 학습자를 상대하는 구조라 학급 규모가
+서비스 내보내기의 손익분기점이다.
+
+FastAPI 타깃은 `--web` 과 같은 페이지를 서빙하고, 대화를 쿠키 세션으로 나눠 같은 JSONL
+포맷으로 남긴다 — 배포된 에이전트의 기록을 그대로 `edu-agent test --regrade` 로 다시 채점할
+수 있다. 인증·DB·멀티테넌시는 §21대로 범위 밖이며, 생성된 README가 그 사실을 명시한다
+(없는 것을 있는 척하는 쪽이 수업용으로 더 나쁘다). Next.js 타깃은 여전히 후순위다.
 
 ---
 
@@ -961,7 +979,7 @@ edu-agent-harness/
 ## 21. MVP에서 하지 않을 것
 
 - 복잡한 multi-agent orchestration, 모든 LLM provider 완전 지원, 복잡한 RAG, Kubernetes, 대규모 cloud, SaaS 인증, 결제, multi-tenancy, 자동 배포, 무제한 self-modifying agent (v1 유지)
-- FastAPI/Next.js 코드 생성의 완성도 추구 (export_cli만)
+- ~~FastAPI/Next.js 코드 생성의 완성도 추구 (export_cli만)~~ → FastAPI는 구현했으나 **인증·DB·멀티테넌시 없는 수업용 단일 프로세스**까지다(§12). Next.js는 여전히 범위 밖
 - **학습 효과에 대한 인과 주장** — 시뮬레이션은 스크리닝이다
 - **사람 보정 없이 judge 점수를 확정 점수로 제시하는 것**
 - 프롬프트 자동 최적화(DSPy 등) — 향후 선택 단계

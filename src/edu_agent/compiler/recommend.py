@@ -42,20 +42,33 @@ def recommend_stack(spec: TechnicalSpec, *, overwrite: bool = False) -> Technica
         )
 
     # --- execution path & interface -------------------------------------
+    # One local process serves one learner at a time, so a class-sized group in a
+    # browser is the point where exporting a service starts to earn its cost.
+    many_at_once = bool(req.uses_web_browser and (req.expected_users or 0) > 30)
     if overwrite or spec.execution_path is ExecutionPath.HARNESS_RUNTIME:
-        spec.execution_path = ExecutionPath.HARNESS_RUNTIME
-        decide(
-            "실행 방식",
-            "하네스 런타임 (edu-agent run)",
-            "코드를 만들지 않고 04 문서를 그대로 실행합니다. 설계를 고치면 곧바로 반영되고, "
-            "정책 게이트가 한 곳에서만 관리됩니다.",
-        )
+        if many_at_once:
+            spec.execution_path = ExecutionPath.EXPORT_FASTAPI
+            decide(
+                "실행 방식",
+                "FastAPI 서비스로 내보내기 (edu-agent build --target fastapi)",
+                f"브라우저에서 {req.expected_users}명이 쓴다고 하셨습니다. 여러 명이 동시에 "
+                "접속하려면 서비스가 필요합니다. 설계를 다듬는 동안에는 edu-agent run 을 "
+                "그대로 쓰고, 배포할 때 내보내세요.",
+            )
+        else:
+            spec.execution_path = ExecutionPath.HARNESS_RUNTIME
+            decide(
+                "실행 방식",
+                "하네스 런타임 (edu-agent run)",
+                "코드를 만들지 않고 04 문서를 그대로 실행합니다. 설계를 고치면 곧바로 반영되고, "
+                "정책 게이트가 한 곳에서만 관리됩니다.",
+            )
 
     if overwrite or spec.interface.kind is InterfaceKind.CLI:
         if req.uses_web_browser:
             spec.interface = InterfaceSpec(
-                kind=InterfaceKind.GRADIO,
-                notes="edu-agent run --web 로 로컬 웹 채팅을 엽니다.",
+                kind=InterfaceKind.WEB_CHAT,
+                notes="edu-agent run --web 로 로컬 웹 채팅을 엽니다. 추가 설치가 필요 없습니다.",
             )
             decide("사용 화면", "로컬 웹 채팅", "학습자가 브라우저에서 사용한다고 하셨습니다.")
         else:
