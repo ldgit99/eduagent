@@ -16,6 +16,12 @@ jobs:
         python: ["3.12", "3.13"]
     runs-on: ${{ matrix.os }}
 
+    # Job-wide, not per-step: every step here prints Korean, and a Windows runner
+    # defaults to a codepage that cannot encode it. Setting this only on the test
+    # step let `make_example.py` die on its own warning text.
+    env:
+      PYTHONUTF8: "1"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -35,8 +41,6 @@ jobs:
 
       - name: Test
         run: uv run pytest -q
-        env:
-          PYTHONUTF8: "1"
 
       - name: Example project still compiles
         run: uv run python scripts/make_example.py

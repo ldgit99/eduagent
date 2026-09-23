@@ -25,8 +25,13 @@ from rich.text import Text
 from edu_agent.i18n import t
 
 
-def _configure_stdio() -> None:
-    """Force UTF-8 on Windows terminals that default to cp949."""
+def configure_stdio() -> None:
+    """Force UTF-8 on Windows terminals that default to cp949.
+
+    Public because anything that prints Korean needs it, not just the CLI —
+    ``scripts/make_example.py`` used plain ``print`` and died on its own warning
+    text under a Windows codepage.
+    """
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
@@ -34,7 +39,7 @@ def _configure_stdio() -> None:
                 reconfigure(encoding="utf-8", errors="replace")
 
 
-_configure_stdio()
+configure_stdio()
 
 console = Console(soft_wrap=False, highlight=False)
 err_console = Console(stderr=True, soft_wrap=False, highlight=False)

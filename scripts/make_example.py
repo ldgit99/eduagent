@@ -28,6 +28,7 @@ from edu_agent.schemas.educational import (  # noqa: E402
     LearningObjective,
     LearningProblem,
 )
+from edu_agent.ui import configure_stdio  # noqa: E402
 
 TARGET = ROOT / "examples" / "c-debugging-coach"
 
@@ -283,6 +284,9 @@ def build_technical():
 
 
 def main() -> None:
+    # This script prints Korean; a Windows console will not encode it otherwise.
+    configure_stdio()
+
     if TARGET.exists():
         import shutil
 
