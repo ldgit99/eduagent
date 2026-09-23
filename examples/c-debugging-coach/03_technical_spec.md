@@ -5,8 +5,8 @@ meta:
   harness_version: 0.2.0
   status: confirmed
   language: ko
-  created_at: '2026-09-23T05:16:53.863694Z'
-  updated_at: '2026-09-23T05:16:53.942668Z'
+  created_at: '2026-09-23T05:44:58.664221Z'
+  updated_at: '2026-09-23T05:44:58.708914Z'
   content_hash: sha256:581f1ad194a408812da3fcf3d8db6022ec5ddeea50e0cbf01aee62eac46bfbe5
   input_hashes: {}
 execution_path: harness_runtime

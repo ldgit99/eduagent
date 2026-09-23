@@ -1516,22 +1516,45 @@ def _target_from_technical(project: Project) -> str:
     return "fastapi" if tech.execution_path is ExecutionPath.EXPORT_FASTAPI else "cli"
 
 
-def _entry() -> None:
+def run_cli(argv: list[str] | None = None) -> int:
+    """Run the CLI and turn any failure into a message plus an exit code.
+
+    Every way of starting the harness goes through here — the console script,
+    ``python -m edu_agent.cli``, and the tests. Until now the friendly rendering
+    lived in the console-script wrapper alone, so a test invoking the app saw a
+    blank screen where a student sees an explanation, and the explanations went
+    untested as a result.
+    """
     try:
-        app()
+        app(args=argv, standalone_mode=False)
     except ui.Abort as exc:
         ui.render_abort(exc)
-        raise SystemExit(1) from None
+        return 1
     except ui.UserAbort:
         ui.say()
         ui.info(t("common.cancelled"))
-        raise SystemExit(0) from None
+        return 0
+    except typer.Exit as exc:
+        return int(exc.exit_code)
+    except SystemExit as exc:  # --help and friends
+        return int(exc.code or 0)
     except Exception as exc:
         if _VERBOSE:
             raise
+        # Usage errors know how to print themselves. Duck-typed rather than
+        # imported: typer vendors click, so there is no top-level ``click`` here.
+        show = getattr(exc, "show", None)
+        if callable(show) and hasattr(exc, "exit_code"):
+            show()
+            return int(exc.exit_code)
         ui.err_console.print(f"[red]✘[/red] 예상하지 못한 문제가 생겼습니다: {exc}")
         ui.err_console.print("  [dim]자세히 보려면 --verbose 를 붙여 다시 실행하세요.[/dim]")
-        raise SystemExit(1) from None
+        return 1
+    return 0
+
+
+def _entry() -> None:
+    raise SystemExit(run_cli())
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -15,7 +15,7 @@ import contextlib
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Protocol
 
 from rich.console import Console
 from rich.panel import Panel
@@ -312,3 +312,71 @@ def key_value(rows: Sequence[tuple[str, str]], indent: str = "  ") -> None:
     width = max(len(k) for k, _ in rows)
     for key, value in rows:
         console.print(f"{indent}{key.ljust(width)}  {value}")
+
+
+# --- asking, as an injectable dependency ----------------------------------
+class Prompter(Protocol):
+    """The five ways this harness asks a person something.
+
+    Only *input* is abstracted. Output stays as plain module functions because a
+    test that wants to read it can capture the console, whereas a test that wants
+    to answer a questionnaire has no way to do so without this seam — which is
+    why the questionnaires had no tests at all until one was written by
+    monkey-patching a dozen names.
+    """
+
+    def ask_text(
+        self,
+        question: str,
+        *,
+        default: str = "",
+        allow_empty: bool = True,
+        multiline: bool = False,
+        hint: str = "",
+    ) -> str: ...
+
+    def ask_choice(
+        self,
+        question: str,
+        choices: Sequence[Choice],
+        *,
+        hint: str = "",
+        default: str = "",
+        allow_later: bool = True,
+    ) -> Any: ...
+
+    def ask_multi(
+        self,
+        question: str,
+        choices: Sequence[Choice],
+        *,
+        hint: str = "",
+        allow_empty: bool = True,
+    ) -> list[Any]: ...
+
+    def ask_yes_no(
+        self,
+        question: str,
+        *,
+        default: bool | None = None,
+        hint: str = "",
+        allow_unknown: bool = False,
+    ) -> bool | None: ...
+
+    def ask_int(
+        self, question: str, *, default: int | None = None, minimum: int = 1, hint: str = ""
+    ) -> int | None: ...
+
+
+class TerminalPrompter:
+    """The real thing: numbered prompts on the terminal."""
+
+    ask_text = staticmethod(ask_text)
+    ask_choice = staticmethod(ask_choice)
+    ask_multi = staticmethod(ask_multi)
+    ask_yes_no = staticmethod(ask_yes_no)
+    ask_int = staticmethod(ask_int)
+
+
+#: The default every questionnaire uses when nothing else is passed.
+TERMINAL: Prompter = TerminalPrompter()

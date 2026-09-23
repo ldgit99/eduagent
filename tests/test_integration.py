@@ -7,10 +7,13 @@ report. If any link in that chain breaks, one of these fails.
 
 from __future__ import annotations
 
+import contextlib
+import io
+
 import pytest
 from typer.testing import CliRunner
 
-from edu_agent.cli import app
+from edu_agent.cli import app, run_cli
 from edu_agent.compiler import compile_spec
 from edu_agent.documents import render_document, save_document
 from edu_agent.documents.io import detect_drift, load_document
@@ -27,6 +30,19 @@ from edu_agent.simulator.personas import default_personas
 from edu_agent.storage.jsonl import RunPaths, load_run, save_session
 
 runner = CliRunner()
+
+
+def invoke_cli(args: list[str]) -> tuple[int, str]:
+    """Run the CLI the way a person does and capture what they would see.
+
+    ``CliRunner`` bypasses the entry point that renders :class:`ui.Abort`, so a
+    test using it sees a blank screen where a student sees an explanation. Going
+    through ``run_cli`` is the only way to assert on the messages themselves.
+    """
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
+        code = run_cli(args)
+    return code, buffer.getvalue()
 
 
 class TestDocumentRoundTrip:
@@ -203,9 +219,26 @@ class TestCLI:
         assert result.exit_code == 0
 
     def test_status_outside_a_project_explains(self, tmp_path, monkeypatch):
+        """Not just 'it failed' — the student has to be told what to do."""
         monkeypatch.chdir(tmp_path)
-        result = runner.invoke(app, ["status"])
-        assert result.exit_code == 1
+        code, output = invoke_cli(["status"])
+
+        assert code == 1
+        assert "프로젝트" in output
+        assert "edu-agent init" in output
+
+    def test_a_failure_names_the_command_to_run_next(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _, output = invoke_cli(["compile"])
+        assert "edu-agent" in output
+
+    def test_an_unknown_command_shows_usage_not_a_traceback(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        code, output = invoke_cli(["nonsense"])
+
+        assert code == 2
+        assert "Usage" in output
+        assert "Traceback" not in output
 
     def test_doctor_runs_without_a_project(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

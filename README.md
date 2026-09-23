@@ -320,7 +320,7 @@ edu-agent run --web
 - ✅ judge 보정 순환: 사람 채점 → 루브릭 오버레이 → 홀드아웃 검증 → 회귀 시 롤백
 - ✅ 개선 루프: 진단 → 제안 → 승인 → 재검증 → 회귀 게이트 → 롤백
 - ✅ 보고서, 내보내기(CLI / FastAPI), 예제 프로젝트
-- ✅ 테스트 382개, Windows/macOS/Linux CI
+- ✅ 테스트 385개, Windows/macOS/Linux CI
 
 ## 다음 단계
 

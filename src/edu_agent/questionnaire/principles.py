@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from edu_agent import ui
+from edu_agent.i18n import t
 from edu_agent.principles.library_loader import LibraryEntry, library_entries, to_principle
 from edu_agent.principles.markdown_source import (
     MarkdownSourceError,
@@ -86,6 +87,7 @@ def run_principles(
     *,
     provider: Provider | None = None,
     source: Path | None = None,
+    prompter: ui.Prompter | None = None,
 ) -> DesignPrinciples:
     ui.header(
         "교육적 설계원리",
@@ -93,17 +95,18 @@ def run_principles(
         step=(2, 4),
     )
 
-    _ask_theories(doc)
-    _ask_answer_policy(doc)
-    _ask_library(doc)
-    _ask_own(doc, provider, source)
-    _confirm_principles(doc)
-    _ask_cross_cutting(doc)
+    ask = prompter or ui.TERMINAL
+    _ask_theories(ask, doc)
+    _ask_answer_policy(ask, doc)
+    _ask_library(ask, doc)
+    _ask_own(ask, doc, provider, source)
+    _confirm_principles(ask, doc)
+    _ask_cross_cutting(ask, doc)
     return doc
 
 
 # --- theories -------------------------------------------------------------
-def _ask_theories(doc: DesignPrinciples) -> None:
+def _ask_theories(ask: ui.Prompter, doc: DesignPrinciples) -> None:
     """Ask what the principles are *grounded in* before asking what they are.
 
     A design principle with no stated basis cannot be argued with, and this is the
@@ -112,7 +115,7 @@ def _ask_theories(doc: DesignPrinciples) -> None:
     ui.say()
     ui.info("[bold]1/5 · 적용 이론 및 교수학습전략[/bold]")
     ui.note("이 에이전트의 설계가 어떤 이론이나 전략에 기대고 있는지 고르세요.")
-    picked = ui.ask_multi(
+    picked = ask.ask_multi(
         "어떤 이론이나 교수학습전략을 적용하시겠습니까?",
         _THEORY_CHOICES,
         hint="여기서 고른 것이 문서의 첫 절이 되고, 각 설계원리의 근거가 됩니다.",
@@ -121,7 +124,7 @@ def _ask_theories(doc: DesignPrinciples) -> None:
     doc.theories_and_strategies = list(picked)
 
     while len(doc.theories_and_strategies) < 8:
-        extra = ui.ask_text(f"직접 추가 {len(doc.theories_and_strategies) + 1} (없으면 엔터)")
+        extra = ask.ask_text(f"직접 추가 {len(doc.theories_and_strategies) + 1} (없으면 엔터)")
         if not extra:
             break
         doc.theories_and_strategies.append(extra)
@@ -131,16 +134,16 @@ def _ask_theories(doc: DesignPrinciples) -> None:
 
 
 # --- answer policy --------------------------------------------------------
-def _ask_answer_policy(doc: DesignPrinciples) -> None:
+def _ask_answer_policy(ask: ui.Prompter, doc: DesignPrinciples) -> None:
     ui.say()
     ui.info("[bold]2/5 · 정답 제공 정책[/bold]")
-    policy = ui.ask_choice(
+    policy = ask.ask_choice(
         "AI가 학습자에게 정답을 바로 제공해도 됩니까?",
         [
             Choice("1", "제공하지 않음", AnswerPolicy.NEVER),
             Choice(
                 "2",
-                f"일정 조건에서만 제공  ({ui.t('common.recommended') if hasattr(ui, 't') else '권장'})",
+                f"일정 조건에서만 제공  ({t('common.recommended')})",
                 AnswerPolicy.CONDITIONAL,
             ),
             Choice("3", "제공 가능", AnswerPolicy.ALLOWED),
@@ -157,7 +160,7 @@ def _ask_answer_policy(doc: DesignPrinciples) -> None:
             "연구에서는 '정답을 너무 빨리 주는 것'과 '학습자가 충분히 시도한 뒤에도 정보를 "
             "보류하는 것'을 둘 다 문제로 봅니다. 후자는 학습자를 막다른 길에 두는 것입니다."
         )
-        reconsider = ui.ask_yes_no("조건부 제공으로 바꿔 볼까요?", default=True)
+        reconsider = ask.ask_yes_no("조건부 제공으로 바꿔 볼까요?", default=True)
         if reconsider:
             doc.answer_policy = AnswerPolicy.CONDITIONAL
         else:
@@ -166,7 +169,7 @@ def _ask_answer_policy(doc: DesignPrinciples) -> None:
     if doc.answer_policy is not AnswerPolicy.CONDITIONAL:
         return
 
-    condition = ui.ask_choice(
+    condition = ask.ask_choice(
         "그렇다면 '언제' 제공해도 됩니까?",
         _ANSWER_CONDITIONS,
         hint="이 조건은 실행 중에 자동으로 검사되어, 조건 전에는 정답이 차단됩니다.",
@@ -176,7 +179,7 @@ def _ask_answer_policy(doc: DesignPrinciples) -> None:
         ui.note("사용할 수 있는 값: attempts, stuck_turns, help_requests, reasoning_shown")
         ui.note("예: attempts >= 4  ·  reasoning_shown == true and stuck_turns >= 1")
         while True:
-            raw = ui.ask_text("조건을 입력하세요")
+            raw = ask.ask_text("조건을 입력하세요")
             try:
                 condition = validate_condition(raw)
                 break
@@ -186,7 +189,7 @@ def _ask_answer_policy(doc: DesignPrinciples) -> None:
 
 
 # --- library --------------------------------------------------------------
-def _ask_library(doc: DesignPrinciples) -> None:
+def _ask_library(ask: ui.Prompter, doc: DesignPrinciples) -> None:
     ui.say()
     ui.info("[bold]3/5 · 설계원리 라이브러리[/bold]")
     ui.note("문헌 근거가 있는 원리입니다. 고른 뒤 자유롭게 수정할 수 있습니다.")
@@ -202,7 +205,7 @@ def _ask_library(doc: DesignPrinciples) -> None:
         Choice(str(i + 1), e.title, e.library_id, e.short[:60])
         for i, e in enumerate(available)
     ]
-    picked = ui.ask_multi(
+    picked = ask.ask_multi(
         "어떤 원리를 사용하시겠습니까?",
         choices,
         hint="각 원리에는 근거 문헌이 붙어 있습니다. 나중에 문서에서 확인할 수 있습니다.",
@@ -233,13 +236,16 @@ def _show_entry(entry: LibraryEntry) -> None:
 
 # --- own principles -------------------------------------------------------
 def _ask_own(
-    doc: DesignPrinciples, provider: Provider | None, source: Path | None = None
+    ask: ui.Prompter,
+    doc: DesignPrinciples,
+    provider: Provider | None,
+    source: Path | None = None,
 ) -> None:
     ui.say()
     ui.info("[bold]4/5 · 직접 작성한 설계원리[/bold]")
     ui.note("문헌 분석으로 도출한 원리가 있다면 가져오세요. 원문은 그대로 보관됩니다.")
 
-    text = _load_from_file(source) if source is not None else _choose_source(doc)
+    text = _load_from_file(source) if source is not None else _choose_source(ask, doc)
     if not text or not text.strip():
         return
     doc.raw_user_text = text
@@ -256,7 +262,7 @@ def _ask_own(
         ui.say(f"  {i}. {statement[:80]}{'…' if len(statement) > 80 else ''}")
     if len(statements) > 8:
         ui.note(f"… 외 {len(statements) - 8}개")
-    if not ui.ask_yes_no("이대로 구조화할까요?", default=True):
+    if not ask.ask_yes_no("이대로 구조화할까요?", default=True):
         ui.note("원문만 저장했습니다. 파일을 고친 뒤 다시 실행하세요.")
         return
 
@@ -285,9 +291,9 @@ def _ask_own(
         )
 
 
-def _choose_source(doc: DesignPrinciples) -> str:
+def _choose_source(ask: ui.Prompter, doc: DesignPrinciples) -> str:
     """File or paste. A prepared document is the common case, so it comes first."""
-    how = ui.ask_choice(
+    how = ask.ask_choice(
         "직접 작성한 설계원리가 있나요?",
         [
             Choice("1", "Markdown 파일에서 불러오기", "file"),
@@ -300,14 +306,14 @@ def _choose_source(doc: DesignPrinciples) -> str:
     if how == "none":
         return ""
     if how == "paste":
-        return ui.ask_text(
+        return ask.ask_text(
             "설계원리를 입력하세요 (여러 개면 줄바꿈으로 구분)",
             multiline=True,
             default=doc.raw_user_text,
         )
 
     while True:
-        raw = ui.ask_text("파일 경로 (예: principles.md, 취소하려면 엔터)")
+        raw = ask.ask_text("파일 경로 (예: principles.md, 취소하려면 엔터)")
         if not raw.strip():
             return ""
         text = _load_from_file(Path(raw.strip().strip('"\'')))
@@ -326,7 +332,7 @@ def _load_from_file(path: Path) -> str:
 
 
 # --- confirmation ---------------------------------------------------------
-def _confirm_principles(doc: DesignPrinciples) -> None:
+def _confirm_principles(ask: ui.Prompter, doc: DesignPrinciples) -> None:
     pending = [p for p in doc.principles if not p.confirmed]
     if not pending:
         return
@@ -339,14 +345,14 @@ def _confirm_principles(doc: DesignPrinciples) -> None:
     )
 
     for principle in pending:
-        _confirm_one(principle, doc)
+        _confirm_one(ask, principle, doc)
 
 
-def _confirm_one(p: DesignPrinciple, doc: DesignPrinciples) -> None:
+def _confirm_one(ask: ui.Prompter, p: DesignPrinciple, doc: DesignPrinciples) -> None:
     ui.say()
     ui.panel(render_principle(p), title=f"{p.id} · {p.title or p.name}", style="cyan")
 
-    action = ui.ask_choice(
+    action = ask.ask_choice(
         "이 규칙이 의도와 맞습니까?",
         [
             Choice("y", "맞습니다", "confirm"),
@@ -365,7 +371,7 @@ def _confirm_one(p: DesignPrinciple, doc: DesignPrinciples) -> None:
             doc.criteria = [c for c in doc.criteria if c.id not in rule.evaluation]
         ui.note(f"{p.id} 를 제외했습니다.")
     else:
-        p.description = ui.ask_text("설명을 다시 적어 주세요", default=p.description, multiline=True)
+        p.description = ask.ask_text("설명을 다시 적어 주세요", default=p.description, multiline=True)
         p.confirmed = True
         ui.ok(f"{p.id} 확인됨")
 
@@ -400,26 +406,26 @@ def render_principle(p: DesignPrinciple) -> str:
 
 
 # --- cross-cutting policies ----------------------------------------------
-def _ask_cross_cutting(doc: DesignPrinciples) -> None:
+def _ask_cross_cutting(ask: ui.Prompter, doc: DesignPrinciples) -> None:
     ui.say()
     ui.note("마지막으로, 네 가지 방침을 한 문장씩 적어 주세요. 비워 두면 기본 문장이 쓰입니다.")
-    doc.learner_agency.stance = ui.ask_text(
+    doc.learner_agency.stance = ask.ask_text(
         "학습자 주도성: 학습자에게 무엇을 남겨 두시겠습니까?",
         default=doc.learner_agency.stance,
     )
-    doc.scaffolding.stance = ui.ask_text(
+    doc.scaffolding.stance = ask.ask_text(
         "스캐폴딩: 도움은 어떻게 조절되어야 합니까?", default=doc.scaffolding.stance
     )
-    doc.feedback.stance = ui.ask_text(
+    doc.feedback.stance = ask.ask_text(
         "피드백: 어떤 피드백이 좋은 피드백입니까?", default=doc.feedback.stance
     )
-    doc.reflection.stance = ui.ask_text(
+    doc.reflection.stance = ask.ask_text(
         "성찰: 학습자는 언제 무엇을 돌아봐야 합니까?", default=doc.reflection.stance
     )
-    _ask_escalation(doc)
+    _ask_escalation(ask, doc)
 
 
-def _ask_escalation(doc: DesignPrinciples) -> None:
+def _ask_escalation(ask: ui.Prompter, doc: DesignPrinciples) -> None:
     """When should the agent stop and hand the learner to a person?
 
     Deciding this is part of designing the agent, not a detail to be defaulted:
@@ -428,14 +434,14 @@ def _ask_escalation(doc: DesignPrinciples) -> None:
     """
     ui.say()
     ui.note("에이전트가 혼자 감당하면 안 되는 상황도 설계에 들어갑니다.")
-    choice = ui.ask_choice(
+    choice = ask.ask_choice(
         "언제 학습자를 선생님에게 넘겨야 합니까?",
         _ESCALATION_CHOICES,
         hint="이 문장은 에이전트의 안전 정책이 되어 시스템 프롬프트에 들어갑니다.",
         default="3",
     )
     if choice == "custom":
-        choice = ui.ask_text("어떤 상황에서 넘겨야 하는지 한 문장으로 적어 주세요")
+        choice = ask.ask_text("어떤 상황에서 넘겨야 하는지 한 문장으로 적어 주세요")
     doc.escalation = choice or ""
 
 
