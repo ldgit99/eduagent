@@ -56,6 +56,42 @@ class Rubric(HarnessModel):
     source: str = ""
 
 
+class RubricExemplar(HarnessModel):
+    """One turn a human rated, shown to the judge as a worked example."""
+
+    learner_message: str = ""
+    tutor_message: str = ""
+    label: Label = Label.PARTIAL
+    note: str = ""
+
+
+class MetricOverlay(HarnessModel):
+    """What human ratings taught us about one metric."""
+
+    note: str = Field(default="", description="사람 채점과 어긋난 방향을 알려주는 한 줄")
+    exemplars: list[RubricExemplar] = Field(default_factory=list)
+
+
+class RubricOverlay(HarnessModel):
+    """A versioned layer on top of the shipped rubrics.
+
+    The rubric files stay under version control and untouched (PReMISE); what a
+    project's own human ratings produce is kept separately, so it is obvious which
+    part of the judge's prompt came from the literature and which part came from
+    twenty turns this class scored.
+    """
+
+    version: int = 0
+    created_at: str = ""
+    kappa_before: float | None = None
+    kappa_after: float | None = None
+    n_holdout: int = 0
+    metrics: dict[str, MetricOverlay] = Field(default_factory=dict)
+
+    def for_metric(self, metric: str) -> MetricOverlay | None:
+        return self.metrics.get(metric)
+
+
 @functools.lru_cache(maxsize=1)
 def load_rubrics() -> dict[str, Rubric]:
     rubrics: dict[str, Rubric] = {}
@@ -74,11 +110,49 @@ def rubric_for(metric: str) -> Rubric | None:
 class Judge:
     """Scores one rubric against one conversation."""
 
-    def __init__(self, provider: Provider, *, order_swap: bool = True, max_turns: int = 20) -> None:
+    def __init__(
+        self,
+        provider: Provider,
+        *,
+        order_swap: bool = True,
+        max_turns: int = 20,
+        overlay: RubricOverlay | None = None,
+    ) -> None:
         self.provider = provider
         self.order_swap = order_swap
         self.max_turns = max_turns
+        self.overlay = overlay
         self.calls = 0
+
+    def score_turn(self, metric: str, trace: SessionTrace, turn_index: int) -> Label:
+        """Judge one specific turn — the unit a human rates on the worksheet.
+
+        ``score`` judges a whole conversation, which is the right unit for a
+        report but the wrong one for calibration: comparing a conversation-level
+        label against a turn-level human label measures the mismatch, not the
+        judge. Everything downstream of calibration uses this instead.
+        """
+        rubric = rubric_for(metric)
+        turn = next((t for t in trace.turns if t.turn_index == turn_index), None)
+        if turn is None:
+            return Label.PARTIAL
+        window = SessionTrace(
+            session_id=trace.session_id,
+            scenario_id=trace.scenario_id,
+            persona_id=trace.persona_id,
+            seed=trace.seed,
+            # A little context on either side: a turn read in isolation loses the
+            # thing most rubrics ask about ("did the tutor adapt?").
+            turns=[t for t in trace.turns if abs(t.turn_index - turn_index) <= 2],
+        )
+        label, _, _ = self._ask(
+            rubric,
+            "",
+            window,
+            f"판정 대상은 [턴 {turn_index}] 하나입니다. 다른 턴은 맥락으로만 보세요.",
+            reversed_order=False,
+        )
+        return label
 
     def score(
         self,
@@ -174,6 +248,20 @@ class Judge:
             lines.append(
                 "## 판정 기준\n- **yes**: 충족함\n- **partial**: 부분적으로 충족함\n- **no**: 충족하지 않음"
             )
+        overlay = self.overlay.for_metric(rubric.metric) if (self.overlay and rubric) else None
+        if overlay is not None:
+            if overlay.note:
+                lines.append(f"## 사람 채점에서 확인된 것\n{overlay.note}")
+            if overlay.exemplars:
+                shown = "\n\n".join(
+                    f"- 학습자: {truncate(e.learner_message, 200)}\n"
+                    f"  튜터: {truncate(e.tutor_message, 300)}\n"
+                    f"  → 사람의 판정: **{e.label.value}**"
+                    + (f" ({e.note})" if e.note else "")
+                    for e in overlay.exemplars
+                )
+                lines.append(f"## 사람이 채점한 예\n{shown}")
+
         if context:
             lines.append(f"## 설계 맥락\n{context}")
 

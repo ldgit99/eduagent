@@ -182,6 +182,9 @@ class Calibration(HarnessModel):
     threshold: float = 0.7
     rated_at: datetime | None = None
     per_dimension: dict[str, float] = Field(default_factory=dict)
+    overlay_version: int = Field(
+        default=0, description="사람 채점으로 다듬은 judge 루브릭 판(0 = 원본)"
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -192,9 +195,13 @@ class Calibration(HarnessModel):
     def status_text(self) -> str:
         if self.kappa is None:
             return "미보정 — judge 점수는 참고용입니다 (edu-agent calibrate)"
+        tuned = f", 루브릭 v{self.overlay_version}" if self.overlay_version else ""
         if self.trustworthy:
-            return f"κ = {self.kappa:.2f} (n={self.n}) — 기준 충족"
-        return f"κ = {self.kappa:.2f} (n={self.n}) — {self.threshold} 미만: judge 점수는 참고용"
+            return f"κ = {self.kappa:.2f} (n={self.n}{tuned}) — 기준 충족"
+        return (
+            f"κ = {self.kappa:.2f} (n={self.n}{tuned}) — "
+            f"{self.threshold} 미만: judge 점수는 참고용"
+        )
 
 
 class DimensionScore(HarnessModel):
