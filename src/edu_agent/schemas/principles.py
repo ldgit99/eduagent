@@ -21,7 +21,6 @@ Two v2 additions matter most:
 
 from __future__ import annotations
 
-import re
 from enum import StrEnum
 from typing import Any, ClassVar
 
@@ -37,6 +36,8 @@ from edu_agent.schemas.common import (
     PrincipleId,
     Strength,
 )
+from edu_agent.schemas.conditions import STATE_VARIABLES as _STATE_VARIABLES
+from edu_agent.schemas.conditions import ConditionError, validate
 
 
 class TriggerEvent(StrEnum):
@@ -110,57 +111,23 @@ ACTION_DIRECTIVENESS: dict[AgentAction, int] = {
 }
 
 #: Learner-state variables the runtime tracks and that ``when`` conditions may use.
-STATE_VARIABLES: tuple[str, ...] = (
-    "attempts",
-    "help_requests",
-    "answer_requests",
-    "stuck_turns",
-    "ladder_level",
-    "misconception_active",
-    "reasoning_shown",
-    "off_task_count",
-    "frustration_flag",
-    "pii_detected",
-    "task_completed",
-    "turn_index",
-)
-
-#: ``attempts >= 2``, ``reasoning_shown == true``, ``a >= 1 and b < 3``
-_COND_TOKEN = re.compile(
-    r"""
-    (?P<var>[a-z_][a-z0-9_]*)\s*
-    (?P<op><=|>=|==|!=|<|>)\s*
-    (?P<val>true|false|\d+)
-    """,
-    re.VERBOSE,
-)
-_COND_SHAPE = re.compile(
-    r"^\s*(?:[a-z_][a-z0-9_]*\s*(?:<=|>=|==|!=|<|>)\s*(?:true|false|\d+))"
-    r"(?:\s+(?:and|or)\s+(?:[a-z_][a-z0-9_]*\s*(?:<=|>=|==|!=|<|>)\s*(?:true|false|\d+)))*\s*$"
-)
+#: Re-exported so the documents keep one obvious import for the vocabulary they
+#: are written against; the grammar itself lives in :mod:`schemas.conditions`.
+STATE_VARIABLES = _STATE_VARIABLES
 
 
 def validate_condition(expr: str) -> str:
     """Validate a ``when`` expression against the tiny supported grammar.
 
-    Only ``<var> <op> <int|true|false>`` joined by ``and``/``or`` is allowed. The
-    grammar is deliberately minimal: it is evaluated by
-    :func:`edu_agent.runtime.state.evaluate_condition` without ``eval``.
+    Only ``<var> <op> <int|true|false>`` joined by ``and``/``or`` is allowed, and
+    it is evaluated without ``eval``. Parsing lives in
+    :mod:`edu_agent.schemas.conditions` so that validation here and evaluation in
+    the runtime cannot drift apart.
     """
-    expr = expr.strip()
-    if not expr:
-        return expr
-    if not _COND_SHAPE.match(expr):
-        raise ValueError(
-            f"조건식을 이해할 수 없습니다: {expr!r}. "
-            "예: 'attempts >= 2', 'reasoning_shown == true and stuck_turns >= 1'"
-        )
-    for m in _COND_TOKEN.finditer(expr):
-        if m.group("var") not in STATE_VARIABLES:
-            raise ValueError(
-                f"알 수 없는 학습자 상태 변수 {m.group('var')!r}. 사용 가능: {', '.join(STATE_VARIABLES)}"
-            )
-    return expr
+    try:
+        return validate(expr)
+    except ConditionError as exc:
+        raise ValueError(str(exc)) from None
 
 
 class StatementType(StrEnum):

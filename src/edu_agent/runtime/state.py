@@ -10,16 +10,12 @@ from a student's Markdown file can never execute code.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
+from edu_agent.schemas import conditions
 from edu_agent.schemas.agent import StateVariableSpec
-from edu_agent.schemas.principles import STATE_VARIABLES, TriggerEvent
-
-_TOKEN = re.compile(
-    r"(?P<var>[a-z_][a-z0-9_]*)\s*(?P<op><=|>=|==|!=|<|>)\s*(?P<val>true|false|\d+)"
-)
-_SPLIT = re.compile(r"\s+(and|or)\s+")
+from edu_agent.schemas.conditions import STATE_VARIABLES
+from edu_agent.schemas.principles import TriggerEvent
 
 
 @dataclass(slots=True)
@@ -85,51 +81,13 @@ _BOOL_VARS = frozenset(
 
 
 def evaluate_condition(expr: str, state: LearnerState) -> bool:
-    """Evaluate a ``when`` expression against ``state``. Empty means always true."""
-    expr = (expr or "").strip()
-    if not expr:
-        return True
+    """Evaluate a ``when`` expression against ``state``.
 
-    parts = _SPLIT.split(expr)
-    result = _atom(parts[0], state)
-    i = 1
-    while i + 1 < len(parts):
-        op, rhs = parts[i], parts[i + 1]
-        value = _atom(rhs, state)
-        result = (result and value) if op == "and" else (result or value)
-        i += 2
-    return result
-
-
-def _atom(text: str, state: LearnerState) -> bool:
-    m = _TOKEN.search(text)
-    if not m:
-        # A malformed condition must not silently become "always true": that would
-        # open a hard gate. Fail closed.
-        return False
-    var, op, raw = m.group("var"), m.group("op"), m.group("val")
-    current = state.get(var)
-    if raw in {"true", "false"}:
-        expected: int | bool = raw == "true"
-        left: int | bool = bool(current)
-    else:
-        expected = int(raw)
-        left = int(current) if not isinstance(current, bool) else int(bool(current))
-
-    match op:
-        case "==":
-            return left == expected
-        case "!=":
-            return left != expected
-        case ">=":
-            return int(left) >= int(expected)
-        case "<=":
-            return int(left) <= int(expected)
-        case ">":
-            return int(left) > int(expected)
-        case "<":
-            return int(left) < int(expected)
-    return False
+    Empty means always true; malformed means false. The grammar itself lives in
+    :mod:`edu_agent.schemas.conditions` so that what the documents validate and
+    what the runtime enforces are one definition.
+    """
+    return conditions.evaluate(expr, state.get)
 
 
 #: Default state-update rules, used when the spec does not declare its own.
