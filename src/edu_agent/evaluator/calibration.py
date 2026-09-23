@@ -6,8 +6,9 @@ Norman et al. (2026) put the failure mode bluntly — judges can be highly relia
 and still invalid, with rankings moving up to 14 places across benchmarks.
 
 So the harness treats every judge score as provisional until a human has rated a
-sample. In a course this is not overhead: rating twenty turns against the same
-rubric is the assessment exercise.
+sample. That is not busywork: rating twenty turns against the same rubric is how
+the author finds out where their own judgement and the model's diverge, and it is
+the assessment exercise when this is taught.
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@ resolves whichever exists so the CLI behaves the same from a git checkout and fr
 Language works by *fallback, not duplication*: a project with ``language: en``
 renders ``en/agent_spec.md.j2`` if it exists and the Korean one otherwise. A
 half-translated template set therefore still produces a complete document, which
-matters because the four documents are the artefact the course is graded on.
+matters because the four documents are the artefact someone else reads and judges.
 """
 
 from __future__ import annotations

@@ -47,8 +47,9 @@ def provider(
 
     ``optional`` marks the steps that are genuinely usable before a key arrives —
     writing the documents and compiling them. Those degrade with a notice instead
-    of stopping, because a course that hands keys out in week 10 would otherwise
-    hit a dead end in week 3.
+    of stopping, because a key often arrives long after the document work starts —
+    handed out midway through a course, approved by a school weeks later — and a
+    hard stop at step one would strand someone who has real work to do.
 
     Running and evaluating an agent are *not* optional in that sense. Quietly
     substituting a fake model there would produce a report a teacher could mistake

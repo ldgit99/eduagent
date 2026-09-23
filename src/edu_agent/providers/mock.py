@@ -1,4 +1,4 @@
-"""Offline providers used by tests, ``--no-llm`` and the 1st-week demo.
+"""Offline providers used by tests, ``--no-llm`` and the first-run demo.
 
 Two reasons this is a first-class module rather than a test fixture:
 

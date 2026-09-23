@@ -21,8 +21,8 @@ def limitation() -> str:
     """The caveat every report carries (plan v2 §4.5).
 
     In a template because it is the most carefully worded paragraph the harness
-    produces, it differs by language, and an instructor may want to adjust it for
-    their course — none of which should require editing Python.
+    produces, it differs by language, and whoever hands the report on may want to
+    word it for their own setting — none of which should require editing Python.
     """
     return render_document("report_limitation.md.j2").strip()
 

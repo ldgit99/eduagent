@@ -1,6 +1,6 @@
 """Message catalogue.
 
-Korean is the default because the course is taught in Korean, but every user-facing
+Korean is the default because that is who this was built for, but every user-facing
 string goes through :func:`t` so an English catalogue can be dropped in with
 ``--lang en``. Missing keys fall back to Korean and then to the key itself, so a
 missing translation degrades instead of crashing mid-questionnaire.
