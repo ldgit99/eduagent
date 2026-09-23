@@ -42,6 +42,14 @@ from edu_agent.schemas.common import HarnessModel
 MAX_OUTPUT_BYTES = 4000
 DEFAULT_TIMEOUT_S = 10
 DEFAULT_MEMORY_MB = 256
+#: Compiling is not the learner's time budget. A cold compiler on a slow machine
+#: takes longer than anything the learner's own code is allowed to, and charging
+#: that to their timeout turns "your code is too slow" into a lie.
+MIN_COMPILE_TIMEOUT_S = 60
+
+
+def compile_timeout(policy: SandboxPolicy) -> int:
+    return max(MIN_COMPILE_TIMEOUT_S, policy.timeout_s * 3)
 
 
 class SandboxError(Exception):
@@ -272,7 +280,11 @@ class SubprocessSandbox(Sandbox):
 
             if lang.compile_cmd:
                 built = _spawn(
-                    [c.format(tool=tool) for c in lang.compile_cmd], workdir, "", self.policy
+                    [c.format(tool=tool) for c in lang.compile_cmd],
+                    workdir,
+                    "",
+                    self.policy,
+                    timeout_s=compile_timeout(self.policy),
                 )
                 if built.timed_out or built.returncode != 0:
                     text, truncated = self._clip(built.stderr or built.stdout)
@@ -284,7 +296,11 @@ class SubprocessSandbox(Sandbox):
                         duration_ms=_ms(started),
                         backend=self.name,
                         isolation=self.isolation,
-                        error="컴파일에 실패했습니다." if not built.timed_out else "",
+                        error=(
+                            "컴파일이 제한 시간 안에 끝나지 않았습니다."
+                            if built.timed_out
+                            else "컴파일에 실패했습니다."
+                        ),
                     )
 
             proc = _spawn(
@@ -467,24 +483,48 @@ def _spawn(
         )
     except subprocess.TimeoutExpired as exc:
         return _Proc(None, _as_text(exc.stdout), _as_text(exc.stderr), timed_out=True)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        # ``run`` promises never to raise for a failed execution, and a child that
+        # dies during setup is a failed execution like any other.
         return _Proc(None, "", str(exc), timed_out=False)
     return _Proc(completed.returncode, completed.stdout, completed.stderr, timed_out=False)
 
 
 def _limits(policy: SandboxPolicy):  # pragma: no cover - POSIX only
+    """Build the ``preexec_fn`` that caps the child.
+
+    Every limit is applied on its own and failures are swallowed. Anything raised
+    in ``preexec_fn`` becomes a ``SubprocessError`` in the parent and takes the
+    whole execution down, and platforms disagree about which limits they accept —
+    macOS in particular refuses ``RLIMIT_AS`` outright. A limit we cannot set is
+    a weaker sandbox, which :attr:`ExecResult.isolation` already reports; it is
+    not a reason to fail the run.
+    """
     # Imported dynamically because ``resource`` does not exist on Windows, where
     # the type checker also runs; the caller already guards on ``os.name``.
     resource: Any = importlib.import_module("resource")
 
     memory = policy.memory_mb * 1024 * 1024
+    wanted = [
+        ("RLIMIT_CPU", (policy.timeout_s, policy.timeout_s + 1)),
+        ("RLIMIT_FSIZE", (8 * 1024 * 1024, 8 * 1024 * 1024)),
+        ("RLIMIT_NOFILE", (64, 64)),
+        ("RLIMIT_CORE", (0, 0)),
+    ]
+    # On Darwin an address-space cap either fails or breaks the interpreter it is
+    # meant to contain, so it is only attempted where it actually works.
+    if sys.platform != "darwin":
+        wanted.insert(1, ("RLIMIT_AS", (memory, memory)))
 
     def apply() -> None:
-        resource.setrlimit(resource.RLIMIT_CPU, (policy.timeout_s, policy.timeout_s + 1))
-        resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
-        resource.setrlimit(resource.RLIMIT_FSIZE, (8 * 1024 * 1024, 8 * 1024 * 1024))
-        resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
-        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        for name, values in wanted:
+            limit = getattr(resource, name, None)
+            if limit is None:
+                continue
+            try:
+                resource.setrlimit(limit, values)
+            except (ValueError, OSError):
+                continue
 
     return apply
 
@@ -539,6 +579,7 @@ def _ms(started: float) -> int:
 __all__ = [
     "DEFAULT_TIMEOUT_S",
     "LANGUAGES",
+    "MIN_COMPILE_TIMEOUT_S",
     "DisabledSandbox",
     "DockerSandbox",
     "ExecRequest",
@@ -547,6 +588,7 @@ __all__ = [
     "SandboxError",
     "SandboxPolicy",
     "SubprocessSandbox",
+    "compile_timeout",
     "describe_backends",
     "get_sandbox",
     "resolve_language",

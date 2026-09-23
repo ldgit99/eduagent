@@ -8,7 +8,9 @@ anything. They stay offline and finish in a couple of seconds.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import sys
 
 import pytest
 
@@ -141,6 +143,60 @@ class TestSubprocessSandbox:
         result = sandbox.run(ExecRequest(language="c", code="int main(void){ return }"))
         assert not result.ok
         assert "컴파일" in result.error
+
+
+class TestNeverRaises:
+    """``run`` returning a failed result is the contract; raising is a bug.
+
+    macOS refuses ``RLIMIT_AS``, which made every execution die with
+    ``SubprocessError`` from inside ``preexec_fn`` — a whole platform where the
+    sandbox threw instead of reporting.
+    """
+
+    def test_child_setup_failure_becomes_a_result(self, sandbox, monkeypatch):
+        import subprocess
+
+        from edu_agent.security import sandbox as sandbox_module
+
+        def explode(*args, **kwargs):
+            raise subprocess.SubprocessError("Exception occurred in preexec_fn.")
+
+        monkeypatch.setattr(sandbox_module.subprocess, "run", explode)
+        result = sandbox.run(ExecRequest(language="python", code="print(1)"))
+
+        assert not result.ok
+        assert "preexec_fn" in result.stderr
+
+    @pytest.mark.skipif(os.name != "posix", reason="rlimit은 POSIX 전용")
+    def test_unsupported_limits_are_skipped_not_fatal(self):
+        """A limit the platform rejects weakens the sandbox; it must not kill it."""
+        from edu_agent.security.sandbox import _limits
+
+        apply = _limits(SandboxPolicy(backend="subprocess", memory_mb=64))
+        # Runs in a forked child in real use; calling it here only has to prove
+        # that a rejected setrlimit is swallowed rather than raised.
+        code = (
+            "import sys; sys.path.insert(0, 'src');"
+            "from edu_agent.security.sandbox import _limits;"
+            "from edu_agent.security.sandbox import SandboxPolicy;"
+            "_limits(SandboxPolicy())(); print('ok')"
+        )
+        import subprocess
+
+        done = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, text=True, timeout=30, check=False
+        )
+        assert apply is not None
+        assert done.returncode == 0, done.stderr
+
+
+def test_compilation_gets_its_own_time_budget():
+    """Charging a cold compiler to the learner's timeout reports the wrong failure."""
+    from edu_agent.security.sandbox import MIN_COMPILE_TIMEOUT_S, compile_timeout
+
+    policy = SandboxPolicy(backend="subprocess", timeout_s=2)
+    assert compile_timeout(policy) >= MIN_COMPILE_TIMEOUT_S
+    assert compile_timeout(policy) > policy.timeout_s
 
 
 def test_disabled_sandbox_explains_itself():
