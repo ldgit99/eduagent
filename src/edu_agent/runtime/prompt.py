@@ -12,6 +12,11 @@ Two deliberate choices:
 
 from __future__ import annotations
 
+import functools
+from pathlib import Path
+
+import yaml
+
 from edu_agent.runtime.state import LearnerState
 from edu_agent.schemas.agent import AgentSpec, Phase
 from edu_agent.schemas.educational import TaskItem
@@ -44,26 +49,17 @@ TURN_SCHEMA: dict[str, object] = {
     "strict": False,
 }
 
-ACTION_HELP_KO: dict[AgentAction, str] = {
-    AgentAction.ASK_FOR_REASONING: "학습자가 지금 무엇을 어떻게 생각하는지 묻는다",
-    AgentAction.ASK_METACOGNITIVE_QUESTION: "자신의 사고 과정을 돌아보게 하는 질문을 한다",
-    AgentAction.ASK_CLARIFYING_QUESTION: "상황을 더 알기 위해 되묻는다",
-    AgentAction.PROVIDE_DIRECTIONAL_HINT: "어디를 볼지만 알려준다 (무엇이 틀렸는지는 말하지 않는다)",
-    AgentAction.PROVIDE_CONCEPTUAL_HINT: "관련된 개념을 짚어준다",
-    AgentAction.PROVIDE_PARTIAL_EXAMPLE: "일부만 채워진 예시를 준다",
-    AgentAction.PROVIDE_WORKED_EXAMPLE: "비슷한 문제의 풀이 과정을 보여준다",
-    AgentAction.PROVIDE_DETAILED_EXPLANATION: "자세히 설명한다",
-    AgentAction.GIVE_DIRECT_ANSWER: "정답을 알려준다",
-    AgentAction.GIVE_PROCESS_FEEDBACK: "학습자가 쓴 전략·과정에 대해 피드백한다",
-    AgentAction.GIVE_OUTCOME_FEEDBACK: "결과가 맞는지 알려준다",
-    AgentAction.ACKNOWLEDGE_AND_ENCOURAGE: "인정하고 격려한다",
-    AgentAction.PROMPT_REFLECTION: "어떻게 해결했는지 설명해 보게 한다",
-    AgentAction.PROMPT_SELF_EXPLANATION: "자기 말로 개념을 설명해 보게 한다",
-    AgentAction.REDIRECT_TO_TASK: "짧게 응대하고 과제로 되돌린다",
-    AgentAction.REFUSE_AND_EXPLAIN: "할 수 없는 이유를 설명한다",
-    AgentAction.SUMMARIZE_PROGRESS: "지금까지의 진행을 정리한다",
-    AgentAction.ESCALATE_TO_HUMAN: "선생님께 물어보도록 안내한다",
-}
+
+@functools.lru_cache(maxsize=4)
+def action_help(lang: str = "ko") -> dict[str, str]:
+    """One line per action, for the menu the model is given each turn.
+
+    In YAML rather than in code: the names are schema, but the explanations are
+    prompt wording, and tuning prompt wording should not look like a schema change.
+    """
+    path = Path(__file__).parent / "actions.yaml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return dict(data.get(lang) or data.get("ko") or {})
 
 
 def build_system_prompt(spec: AgentSpec) -> str:
@@ -125,8 +121,9 @@ def build_turn_prompt(
         goal = f" — {phase.goal}" if phase.goal else ""
         lines.append(f"## 현재 단계\n{phase.title}{goal}")
 
+    help_lines = action_help()
     menu = "\n".join(
-        f"- `{a.value}`: {ACTION_HELP_KO.get(a, '')}".rstrip(": ")
+        f"- `{a.value}`: {help_lines.get(a.value, '')}".rstrip(": ")
         for a in sorted(allowed, key=lambda x: x.value)
     )
     lines.append(f"## 허용된 행동\n{menu}\n\n이 목록에 없는 행동은 하지 않습니다.")

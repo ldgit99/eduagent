@@ -1,0 +1,61 @@
+"""{{ name }} — {{ role }}
+
+이 파일은 edu-agent-harness 가 만들었습니다.
+행동 규칙과 정책 게이트는 spec/04_agent_spec.md 에 있습니다.
+설계를 바꾸려면 이 파일이 아니라 그 문서를 고치세요.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from edu_agent.documents.io import load_document
+from edu_agent.project.config import ProviderProfile
+from edu_agent.providers import get_provider
+from edu_agent.runtime.loop import AgentRuntime
+from edu_agent.runtime.tools import ToolRuntime
+from edu_agent.schemas.agent import AgentSpec
+
+HERE = Path(__file__).parent
+SPEC_PATH = HERE / "spec" / "04_agent_spec.md"
+
+
+def load_spec() -> AgentSpec:
+    spec, _ = load_document(SPEC_PATH, AgentSpec)
+    return spec
+
+
+def build_runtime(spec: AgentSpec) -> AgentRuntime:
+    profile = ProviderProfile(
+        kind=os.getenv("EDU_AGENT_KIND", "openai_compatible"),
+        base_url=os.getenv("EDU_AGENT_BASE_URL", ""),
+        model=os.getenv("EDU_AGENT_MODEL", ""),
+    )
+    tools = ToolRuntime(spec.tools) if spec.tools else None
+    return AgentRuntime(spec=spec, provider=get_provider(profile), tools=tools)
+
+
+def main() -> None:
+    spec = load_spec()
+    runtime = build_runtime(spec)
+
+    print(f"{spec.agent_role}")
+    print("종료하려면 /quit\n")
+
+    while True:
+        try:
+            message = input("나  > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not message or message in {"/quit", "/q"}:
+            break
+        result = runtime.turn(message)
+        for call in result.tool_calls:
+            state = "차단" if not call.allowed else ("실행" if call.ok else "실패")
+            print(f"  [도구 {state} · {call.name}]")
+        print(f"\n튜터  {result.message}\n")
+
+
+if __name__ == "__main__":
+    main()

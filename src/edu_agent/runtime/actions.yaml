@@ -1,0 +1,27 @@
+# 에이전트가 고를 수 있는 행동과, 그 행동이 무엇인지에 대한 한 줄 설명.
+#
+# 이 문장들은 매 턴 모델에게 "허용된 행동" 목록으로 전달됩니다. 행동 이름은
+# 스키마(AgentAction)가 정하고, 설명은 여기서 정합니다 — 설명을 다듬는 것은
+# 프롬프트 엔지니어링이지 스키마 변경이 아니기 때문입니다.
+
+version: 1
+
+ko:
+  ask_for_reasoning: 학습자가 지금 무엇을 어떻게 생각하는지 묻는다
+  ask_metacognitive_question: 자신의 사고 과정을 돌아보게 하는 질문을 한다
+  ask_clarifying_question: 상황을 더 알기 위해 되묻는다
+  provide_directional_hint: 어디를 볼지만 알려준다 (무엇이 틀렸는지는 말하지 않는다)
+  provide_conceptual_hint: 관련된 개념을 짚어준다
+  provide_partial_example: 일부만 채워진 예시를 준다
+  provide_worked_example: 비슷한 문제의 풀이 과정을 보여준다
+  provide_detailed_explanation: 자세히 설명한다
+  give_direct_answer: 정답을 알려준다
+  give_process_feedback: 학습자가 쓴 전략·과정에 대해 피드백한다
+  give_outcome_feedback: 결과가 맞는지 알려준다
+  acknowledge_and_encourage: 인정하고 격려한다
+  prompt_reflection: 어떻게 해결했는지 설명해 보게 한다
+  prompt_self_explanation: 자기 말로 개념을 설명해 보게 한다
+  redirect_to_task: 짧게 응대하고 과제로 되돌린다
+  refuse_and_explain: 할 수 없는 이유를 설명한다
+  summarize_progress: 지금까지의 진행을 정리한다
+  escalate_to_human: 선생님께 물어보도록 안내한다

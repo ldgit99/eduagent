@@ -93,7 +93,17 @@ def resolve_template(template_name: str, lang: str = "") -> str:
 
 def render_document(template_name: str, lang: str = "", **context: Any) -> str:
     """Render the ``template_name`` document body in ``lang`` with ``context``."""
-    return _env().get_template(resolve_template(template_name, lang)).render(**context).strip() + "\n"
+    return render_template(resolve_template(template_name, lang), **context).strip() + "\n"
+
+
+def render_template(path: str, /, **context: Any) -> str:
+    """Render a template by exact path, with no language resolution.
+
+    Separate from :func:`render_document`, and positional-only, because a named
+    parameter here collides with a template variable of the same name — and the
+    exported projects have both a ``name`` and a ``lang``.
+    """
+    return _env().get_template(path).render(**context).rstrip("\n") + "\n"
 
 
 def render_string(source: str, **context: Any) -> str:

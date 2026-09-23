@@ -169,46 +169,19 @@ def resolve_language(name: str) -> Language | None:
 #: Installed before the learner's Python code runs. It cannot stop a determined
 #: attacker (nothing in-process can), but it removes the two things a stray tutor
 #: session is actually likely to do: open a socket and spawn a process.
-_PY_GUARD = '''\
-"""Installed by edu-agent-harness. Removes network access and process spawning."""
-import os
-import runpy
-import sys
+@functools.lru_cache(maxsize=1)
+def python_guard() -> str:
+    """The module installed before the learner's Python code runs.
 
+    It cannot stop a determined attacker — nothing in-process can — but it removes
+    the two things a stray tutor session is actually likely to do: open a socket
+    and spawn a process.
 
-def _deny(what):
-    def fail(*args, **kwargs):
-        raise PermissionError("이 실행 환경에서는 허용되지 않습니다: " + what)
-
-    return fail
-
-
-try:
-    import socket
-
-    socket.socket = _deny("네트워크 접속")
-    socket.create_connection = _deny("네트워크 접속")
-    socket.getaddrinfo = _deny("네트워크 주소 조회")
-except Exception:
-    pass
-
-try:
-    import subprocess
-
-    subprocess.Popen = _deny("다른 프로그램 실행")
-    subprocess.run = _deny("다른 프로그램 실행")
-    subprocess.call = _deny("다른 프로그램 실행")
-except Exception:
-    pass
-
-for _name in ("system", "popen", "fork", "forkpty", "execv", "execve", "execvp", "spawnv"):
-    if hasattr(os, _name):
-        setattr(os, _name, _deny("다른 프로그램 실행"))
-
-_target = sys.argv[1]
-sys.argv = [_target]
-runpy.run_path(_target, run_name="__main__")
-'''
+    Kept as a file rather than a string so it reads as the Python it is. The
+    .txt suffix is deliberate: it is data this package writes out, not a
+    module this package imports.
+    """
+    return (Path(__file__).parent / "guard.py.txt").read_text(encoding="utf-8")
 
 
 # --- backends -------------------------------------------------------------
@@ -231,7 +204,7 @@ class Sandbox:
     def _prepare(self, request: ExecRequest, workdir: Path, lang: Language) -> None:
         (workdir / lang.filename).write_text(request.code, encoding="utf-8", newline="\n")
         if lang.name == "python":
-            (workdir / "_guard.py").write_text(_PY_GUARD, encoding="utf-8", newline="\n")
+            (workdir / "_guard.py").write_text(python_guard(), encoding="utf-8", newline="\n")
         for rel, content in request.files.items():
             target = _safe_join(workdir, rel)
             target.parent.mkdir(parents=True, exist_ok=True)

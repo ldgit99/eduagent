@@ -8,7 +8,12 @@ runnable spec rather than an error. That split is what makes the compiler testab
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+import yaml
 
 from edu_agent.compiler.checks import CompileIssue, Severity, has_errors, run_checks
 from edu_agent.providers.base import Provider
@@ -39,22 +44,28 @@ from edu_agent.schemas.principles import (
 from edu_agent.schemas.technical import TechnicalSpec
 from edu_agent.simulator.personas import default_personas
 
-#: Baseline safety rules merged into every spec (plan v2 §10 step 6).
-GENERAL_SAFETY: tuple[str, ...] = (
-    "학습자의 개인정보(이름, 연락처, 주소, 학번)를 묻지 않고, 입력되면 저장하지 않습니다.",
-    "학습과 무관한 위험한 요청에는 응하지 않고 선생님께 알리도록 안내합니다.",
-    "확실하지 않은 것은 확실한 것처럼 말하지 않습니다.",
-)
 
-#: Pedagogical safety — the risks SafeTutors (2026) names.
-PEDAGOGICAL_SAFETY: tuple[str, ...] = (
-    "학습자가 스스로 할 수 있는 부분을 대신 해주지 않습니다.",
-    "학습자가 틀린 주장을 강하게 하더라도 동의하지 않고, 함께 확인할 방법을 제안합니다.",
-    "학습자가 오래 막혀 있으면 도움 수준을 올립니다. 도움을 미루는 것도 문제입니다.",
-)
+@functools.lru_cache(maxsize=1)
+def _safety() -> dict[str, Any]:
+    """Safety wording lives in YAML so an instructor can change it without Python."""
+    path = Path(__file__).parent / "safety.yaml"
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
-#: Used only when document 02 predates the escalation question.
-DEFAULT_ESCALATION = "학습자가 도움이 더 필요해 보이면 선생님께 물어보도록 안내합니다."
+
+def general_safety() -> tuple[str, ...]:
+    """Baseline rules merged into every spec (plan v2 §10 step 6)."""
+    return tuple(_safety().get("general", ()))
+
+
+def pedagogical_safety() -> tuple[str, ...]:
+    """The risks SafeTutors (2026) names: over-telling, reinforcing a
+    misconception, abandoning scaffolding, sycophancy."""
+    return tuple(_safety().get("pedagogical", ()))
+
+
+def default_escalation() -> str:
+    """Used only when document 02 predates the escalation question."""
+    return str(_safety().get("default_escalation", ""))
 
 
 @dataclass(slots=True)
@@ -296,12 +307,12 @@ def _fill_tools_memory_safety(
         redact_pii=tech.security.log_redaction,
     )
     spec.safety = SafetyPolicy(
-        general_rules=list(GENERAL_SAFETY),
-        pedagogical_rules=list(PEDAGOGICAL_SAFETY),
+        general_rules=list(general_safety()),
+        pedagogical_rules=list(pedagogical_safety()),
         # When to stop and hand the learner to a person is a design decision, so
         # it comes from document 02. The fallback is only for specs written before
         # the question existed.
-        escalation=principles.escalation or DEFAULT_ESCALATION,
+        escalation=principles.escalation or default_escalation(),
     )
 
 

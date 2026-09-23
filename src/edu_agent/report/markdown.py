@@ -10,20 +10,21 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from edu_agent.documents.render import render_document
 from edu_agent.optimizer.patch import list_snapshots
 from edu_agent.schemas.agent import AgentSpec
 from edu_agent.schemas.common import CheckType
 from edu_agent.schemas.evaluation import SCORED_DIMENSIONS, EvaluationReport, Label
 
-LIMITATION = """\
-> **이 결과를 읽을 때 주의할 점**
->
-> 이 평가는 **시뮬레이션 학생**을 상대로 한 것입니다. 설계한 원리가 에이전트의 행동으로
-> 실제 실행되는지를 확인하는 자료이며, **학습 효과의 증거가 아닙니다**. 학습 효과는
-> 실제 학습자를 대상으로 한 연구로만 주장할 수 있습니다.
->
-> AI 판정(judge) 점수는 사람 채점과 비교되기 전까지 참고용입니다. 자동 검사(결정적 검사)
-> 결과가 더 신뢰할 수 있습니다."""
+
+def limitation() -> str:
+    """The caveat every report carries (plan v2 §4.5).
+
+    In a template because it is the most carefully worded paragraph the harness
+    produces, it differs by language, and an instructor may want to adjust it for
+    their course — none of which should require editing Python.
+    """
+    return render_document("report_limitation.md.j2").strip()
 
 
 def build_report(
@@ -43,7 +44,7 @@ def build_report(
         _evidence(evaluation),
         _improvements(project),
         _simulator(evaluation),
-        LIMITATION,
+        limitation(),
     ]
     return "\n\n".join(p for p in parts if p).strip() + "\n"
 

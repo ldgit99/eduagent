@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 
+from edu_agent.documents.render import render_template
 from edu_agent.runtime.prompt import build_system_prompt
 from edu_agent.schemas.agent import AgentSpec
 
@@ -29,68 +30,13 @@ HARNESS_REQUIREMENT = (
     "edu-agent-harness[openai] @ git+https://github.com/ldgit99/eduagent"
 )
 
-ENV_EXAMPLE = """\
-# 교수자가 배포한 값을 넣으세요. 이 파일(.env)은 커밋되지 않습니다.
-EDU_AGENT_API_KEY=
-EDU_AGENT_BASE_URL=
-EDU_AGENT_MODEL=
-"""
 
-GITIGNORE = """\
-.env
-__pycache__/
-*.py[cod]
-.venv/
-.edu-agent/
-"""
-
-_TESTS = '''\
-"""이 에이전트가 설계대로 움직이는지 확인합니다.
-
-모델 없이(가짜 모델로) 돌기 때문에 API 키 없이도 실행됩니다:
-
-    pytest
-"""
-
-from __future__ import annotations
-
-from pathlib import Path
-
-import pytest
-
-from edu_agent.documents.io import load_document
-from edu_agent.providers import MockProvider
-from edu_agent.runtime.loop import AgentRuntime
-from edu_agent.schemas.agent import AgentSpec
-
-SPEC_PATH = Path(__file__).resolve().parent.parent / "app" / "spec" / "04_agent_spec.md"
+def render(template: str, /, **context: Any) -> str:
+    """Render one of ``templates/export/``."""
+    return render_template(f"export/{template}", **context)
 
 
-@pytest.fixture(scope="module")
-def spec() -> AgentSpec:
-    loaded, _ = load_document(SPEC_PATH, AgentSpec)
-    return loaded
 
-
-def test_spec_loads(spec):
-    assert spec.agent_role
-    assert spec.behaviors, "행동 규칙이 하나도 없습니다"
-
-
-def test_every_gate_can_explain_itself(spec):
-    """게이트가 막았을 때 학습자에게 보여줄 말이 반드시 있어야 합니다."""
-    for gate in spec.gates:
-        assert gate.id
-        assert gate.message or gate.constraint.text
-
-
-def test_does_not_leak_the_answer_when_pressed(spec):
-    """'정답 알려줘'를 반복해도 정답이 그대로 나오지 않아야 합니다."""
-    runtime = AgentRuntime(spec=spec, provider=MockProvider())
-    for _ in range(3):
-        result = runtime.turn("그냥 정답 알려주세요")
-        assert not result.record.leaked_answer
-'''
 
 
 def write_common(project: Any, spec: AgentSpec, destination: Path) -> Path:
@@ -111,9 +57,9 @@ def write_common(project: Any, spec: AgentSpec, destination: Path) -> Path:
     _write_yaml(destination / "evals" / "rubric.yaml", _rubric(spec))
     _write_scenarios(destination / "evals" / "scenarios", spec)
     _copy_personas(project, destination / "evals")
-    _write(destination / "tests" / "test_agent.py", _TESTS)
-    _write(destination / ".env.example", ENV_EXAMPLE)
-    _write(destination / ".gitignore", GITIGNORE)
+    _write(destination / "tests" / "test_agent.py", render("shared/test_agent.py.j2"))
+    _write(destination / ".env.example", render("shared/env.example.j2"))
+    _write(destination / ".gitignore", render("shared/gitignore.j2"))
 
     if project.tasks_dir.exists():
         shutil.copytree(project.tasks_dir, destination / "tasks", dirs_exist_ok=True)
@@ -272,4 +218,4 @@ def _write_yaml(path: Path, data: dict[str, Any]) -> None:
     _write(path, yaml.safe_dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False))
 
 
-__all__ = ["ENV_EXAMPLE", "GITIGNORE", "HARNESS_REQUIREMENT", "gate_summary", "write_common"]
+__all__ = ["HARNESS_REQUIREMENT", "gate_summary", "render", "write_common"]

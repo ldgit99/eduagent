@@ -1,0 +1,38 @@
+"""Installed by edu-agent-harness. Removes network access and process spawning."""
+import os
+import runpy
+import sys
+
+
+def _deny(what):
+    def fail(*args, **kwargs):
+        raise PermissionError("이 실행 환경에서는 허용되지 않습니다: " + what)
+
+    return fail
+
+
+try:
+    import socket
+
+    socket.socket = _deny("네트워크 접속")
+    socket.create_connection = _deny("네트워크 접속")
+    socket.getaddrinfo = _deny("네트워크 주소 조회")
+except Exception:
+    pass
+
+try:
+    import subprocess
+
+    subprocess.Popen = _deny("다른 프로그램 실행")
+    subprocess.run = _deny("다른 프로그램 실행")
+    subprocess.call = _deny("다른 프로그램 실행")
+except Exception:
+    pass
+
+for _name in ("system", "popen", "fork", "forkpty", "execv", "execve", "execvp", "spawnv"):
+    if hasattr(os, _name):
+        setattr(os, _name, _deny("다른 프로그램 실행"))
+
+_target = sys.argv[1]
+sys.argv = [_target]
+runpy.run_path(_target, run_name="__main__")

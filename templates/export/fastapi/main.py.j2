@@ -1,0 +1,114 @@
+"""{{ name }} — {{ role }}
+
+edu-agent-harness 가 만든 FastAPI 서비스입니다.
+행동 규칙과 정책 게이트는 spec/04_agent_spec.md 에 있습니다.
+
+    uvicorn app.main:app --reload
+"""
+
+from __future__ import annotations
+
+import os
+import secrets
+import threading
+from pathlib import Path
+from typing import Any
+
+from fastapi import Cookie, FastAPI, HTTPException, Response
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
+from edu_agent.documents.io import load_document
+from edu_agent.project.config import ProviderProfile
+from edu_agent.providers import get_provider
+from edu_agent.runtime.loop import AgentRuntime
+from edu_agent.runtime.tools import ToolRuntime
+from edu_agent.schemas.agent import AgentSpec
+from edu_agent.storage.jsonl import RunPaths, new_run_id, save_session
+from edu_agent.web.assets import render_page
+
+HERE = Path(__file__).parent
+SPEC_PATH = HERE / "spec" / "04_agent_spec.md"
+TRACE_DIR = Path(os.getenv("EDU_AGENT_TRACE_DIR", HERE.parent / ".edu-agent" / "runs"))
+
+#: Sessions live in memory. One process, one class — see the module docstring.
+_sessions: dict[str, AgentRuntime] = {}
+_lock = threading.Lock()
+
+app = FastAPI(title="{{ name }}")
+SPEC: AgentSpec = load_document(SPEC_PATH, AgentSpec)[0]
+RUN_ID = new_run_id("serve")
+
+
+class TurnRequest(BaseModel):
+    message: str
+
+
+def _build_runtime() -> AgentRuntime:
+    profile = ProviderProfile(
+        kind=os.getenv("EDU_AGENT_KIND", "openai_compatible"),
+        base_url=os.getenv("EDU_AGENT_BASE_URL", ""),
+        model=os.getenv("EDU_AGENT_MODEL", ""),
+    )
+    tools = ToolRuntime(SPEC.tools) if SPEC.tools else None
+    runtime = AgentRuntime(spec=SPEC, provider=get_provider(profile), tools=tools)
+    runtime.trace.run_id = RUN_ID
+    return runtime
+
+
+def _runtime_for(session_id: str) -> AgentRuntime:
+    with _lock:
+        if session_id not in _sessions:
+            _sessions[session_id] = _build_runtime()
+        return _sessions[session_id]
+
+
+def _persist(session_id: str) -> None:
+    runtime = _sessions.get(session_id)
+    if runtime is not None and runtime.trace.turns:
+        save_session(RunPaths(TRACE_DIR, RUN_ID), runtime.trace)
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
+    return {"ok": True, "agent": SPEC.agent_role, "gates": len(SPEC.gates)}
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(response: Response, sid: str | None = Cookie(default=None)) -> str:
+    if not sid:
+        response.set_cookie("sid", secrets.token_urlsafe(16), httponly=True, samesite="strict")
+    return render_page(title="{{ name }}", role=SPEC.agent_role, lang="{{ lang }}")
+
+
+@app.post("/api/turn")
+def turn(payload: TurnRequest, sid: str | None = Cookie(default=None)) -> dict[str, Any]:
+    message = payload.message.strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="빈 메시지입니다.")
+    runtime = _runtime_for(sid or "anonymous")
+    result = runtime.turn(message)
+    _persist(sid or "anonymous")
+    notes = []
+    if result.gate_outcome.blocked:
+        notes.append("규칙에 걸려 다시 생성했습니다.")
+    if result.fallback_used:
+        notes.append("안전한 응답으로 대체했습니다.")
+    return {
+        "message": result.message,
+        "action": result.action.value if result.action else "",
+        "tools": [
+            ("도구 차단 · " + c.name) if not c.allowed else ("도구 실행 · " + c.name)
+            for c in result.tool_calls
+        ],
+        "notes": notes,
+    }
+
+
+@app.post("/api/reset")
+def reset(sid: str | None = Cookie(default=None)) -> dict[str, Any]:
+    key = sid or "anonymous"
+    _persist(key)
+    with _lock:
+        _sessions.pop(key, None)
+    return {"ok": True}
