@@ -4,8 +4,8 @@ app:
   tagline: "Turn design principles into agent behaviour, and into checkable criteria."
 
 common:
-  yes: "Yes"
-  no: "No"
+  "yes": "Yes"
+  "no": "No"
   unknown: "Not sure / recommend for me"
   later: "Later (save and exit)"
   confirm: "Confirm"
@@ -131,6 +131,8 @@ improve:
   rolled_back: "Rolled back to version {version}."
 
 errors:
+  continuing_without_model: "Continuing without the model. Run this again once the key is in place to pick up where it left off."
+  no_key_yet: "No key yet? Use --mock for a fake model, or --no-llm to work on the documents only."
   no_project: "No project found. Run 'edu-agent init' first."
   doc_missing: "{doc} is missing. Run 'edu-agent review {n}' first."
   spec_missing: "04_agent_spec.md is missing. Run 'edu-agent compile' first."

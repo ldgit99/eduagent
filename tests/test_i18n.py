@@ -60,6 +60,51 @@ def test_catalogues_cover_the_same_keys():
     assert set(_keys(catalogues["ko"])) == set(_keys(catalogues["en"]))
 
 
+@pytest.mark.parametrize("lang", ["ko", "en"])
+def test_no_key_is_swallowed_by_yaml_booleans(lang):
+    """``yes:`` unquoted is ``True`` in YAML 1.1, not the string "yes".
+
+    That made every confirmation prompt in the CLI render as "common.yes"
+    instead of 예/아니오 — in both languages, on the most frequent prompt there is.
+    """
+    import edu_agent.i18n as i18n_module
+
+    catalogue = yaml.safe_load(
+        (Path(i18n_module.__file__).parent / f"{lang}.yaml").read_text(encoding="utf-8")
+    )
+
+    def walk(node, path=""):
+        if not isinstance(node, dict):
+            return
+        for key, value in node.items():
+            assert isinstance(key, str), f"{lang}: {path}.{key!r} is {type(key).__name__}"
+            walk(value, f"{path}.{key}")
+
+    walk(catalogue)
+
+
+@pytest.mark.parametrize("lang", ["ko", "en"])
+def test_yes_and_no_actually_translate(lang):
+    set_language(lang)
+    try:
+        assert t("common.yes") != "common.yes"
+        assert t("common.no") != "common.no"
+    finally:
+        set_language("ko")
+
+
+def test_every_key_resolves_to_text_not_its_own_name():
+    """A key that renders as itself is a prompt a learner cannot read."""
+    import edu_agent.i18n as i18n_module
+
+    catalogue = yaml.safe_load(
+        (Path(i18n_module.__file__).parent / "ko.yaml").read_text(encoding="utf-8")
+    )
+    set_language("ko")
+    for key in _keys(catalogue):
+        assert t(key) != key, key
+
+
 def test_missing_language_falls_back_to_korean():
     set_language("fr")
     try:

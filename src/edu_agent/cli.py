@@ -59,8 +59,25 @@ def _load_dotenv(project: Project | None = None) -> None:
     load_dotenv(override=False)
 
 
-def _provider(project: Project, *, role: str = "tutor", no_llm: bool = False, mock: bool = False):
-    """Build a provider, or None when the caller opted out of model calls."""
+def _provider(
+    project: Project,
+    *,
+    role: str = "tutor",
+    no_llm: bool = False,
+    mock: bool = False,
+    optional: bool = False,
+):
+    """Build a provider, or ``None`` when there is a sensible way to go on without one.
+
+    ``optional`` marks the steps that are genuinely usable before a key arrives —
+    writing the documents and compiling them. Those degrade with a notice instead
+    of stopping, because a course that hands keys out in week 10 would otherwise
+    hit a dead end in week 3.
+
+    Running and evaluating an agent are *not* optional in that sense. Quietly
+    substituting a fake model there would produce a report a teacher could mistake
+    for a real one, so those still stop — and say which flag to use.
+    """
     if no_llm:
         return None
     from edu_agent.providers import ProviderError, get_provider
@@ -68,7 +85,15 @@ def _provider(project: Project, *, role: str = "tutor", no_llm: bool = False, mo
     try:
         return get_provider(project.config.provider, role=role, mock=mock)
     except ProviderError as exc:
-        ui.die(str(exc), hint=getattr(exc, "hint", ""), command="edu-agent doctor")
+        if optional:
+            ui.warn(str(exc))
+            ui.note(t("errors.continuing_without_model"))
+            return None
+        ui.die(
+            str(exc),
+            hint=f"{getattr(exc, 'hint', '')}\n{t('errors.no_key_yet')}".strip(),
+            command="edu-agent doctor",
+        )
 
 
 def _read_doc(project: Project, slot: DocSlot):
@@ -459,7 +484,8 @@ def _run_review(
 
     provider = None
     if slot.key == "principles":
-        provider = _provider(project, no_llm=no_llm, mock=mock)
+        # Writing the document is the part that works before a key arrives.
+        provider = _provider(project, no_llm=no_llm, mock=mock, optional=True)
         if provider is None:
             ui.warn(t("review.no_llm"))
 
@@ -538,7 +564,8 @@ def compile(
     technical, _ = _read_doc(project, DOC_FILES[2])
 
     ui.header(t("compile.running"))
-    provider = _provider(project, no_llm=no_llm, mock=mock)
+    # The compiler's core is deterministic; the model only assists.
+    provider = _provider(project, no_llm=no_llm, mock=mock, optional=True)
 
     result = compile_spec(
         educational,  # type: ignore[arg-type]
