@@ -16,20 +16,28 @@
 
 ### 1. 설치
 
-가장 쉬운 방법은 **GitHub Codespaces**입니다. 저장소 위쪽의 `Code → Codespaces → Create` 를
-누르면 아무것도 설치하지 않고 브라우저에서 바로 쓸 수 있습니다.
+가장 쉬운 방법은 **GitHub Codespaces**입니다.
+[저장소](https://github.com/ldgit99/eduagent)에서 `Code → Codespaces → Create` 를 누르면
+아무것도 설치하지 않고 브라우저에서 바로 쓸 수 있습니다.
 
-내 컴퓨터에 설치하려면:
+내 컴퓨터에 설치하려면 먼저 `uv` 를 깝니다.
 
 ```bash
 # Windows PowerShell
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-uv tool install edu-agent-harness
 
 # macOS / Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install edu-agent-harness
 ```
+
+그다음 하네스를 설치합니다. **`[openai]` 를 꼭 붙이세요** — 이것이 없으면 `--mock` 으로만
+돌아가고 실제 모델을 부르지 못합니다.
+
+```bash
+uv tool install "edu-agent-harness[openai] @ git+https://github.com/ldgit99/eduagent"
+```
+
+나중에 최신 버전으로 올리려면 같은 명령에 `--force` 를 붙이면 됩니다.
 
 ### 2. 잘 되는지 확인
 
@@ -43,8 +51,8 @@ edu-agent doctor
 ### 3. 예제를 먼저 구경하기
 
 ```bash
-git clone https://github.com/edu-agent-harness/edu-agent-harness
-cd edu-agent-harness/examples/c-debugging-coach
+git clone https://github.com/ldgit99/eduagent
+cd eduagent/examples/c-debugging-coach
 
 edu-agent status                      # 이 프로젝트가 어디까지 왔는지
 edu-agent test --mock --no-llm        # 가짜 모델로 평가까지 한 바퀴 (키 불필요)
@@ -296,7 +304,7 @@ edu-agent run --web
 - ✅ judge 보정 순환: 사람 채점 → 루브릭 오버레이 → 홀드아웃 검증 → 회귀 시 롤백
 - ✅ 개선 루프: 진단 → 제안 → 승인 → 재검증 → 회귀 게이트 → 롤백
 - ✅ 보고서, 내보내기(CLI / FastAPI), 예제 프로젝트
-- ✅ 테스트 342개, Windows/macOS/Linux CI
+- ✅ 테스트 344개, Windows/macOS/Linux CI
 
 ## 다음 단계
 
@@ -310,8 +318,8 @@ edu-agent run --web
 ## 개발
 
 ```bash
-git clone https://github.com/edu-agent-harness/edu-agent-harness
-cd edu-agent-harness
+git clone https://github.com/ldgit99/eduagent
+cd eduagent
 uv sync
 uv run pytest              # 모든 테스트는 오프라인에서 돕니다
 uv run ruff check .

@@ -2,16 +2,16 @@
 meta:
   schema_name: agent_spec
   schema_version: 1
-  harness_version: 0.1.0
+  harness_version: 0.2.0
   status: compiled
   language: ko
-  created_at: '2026-09-23T04:00:13.729196Z'
-  updated_at: '2026-09-23T04:00:13.752640Z'
+  created_at: '2026-09-23T04:50:19.176401Z'
+  updated_at: '2026-09-23T04:50:19.196495Z'
   content_hash: sha256:a89726d108bab47d1ad084b18c3953d4bab1af2e68db864f83c8bba5693a78b3
   input_hashes:
-    01_educational_design.md: sha256:23eb715287d2fedd881b2dcb4929fc6ecbdb334b59265591bba7fb8f42ace9da
-    02_design_principles.md: sha256:a704e74f9d08fc473ac2309b79050ec2dec5626e18a20a2defc274b9cb694b86
-    03_technical_spec.md: sha256:8ee98ccb1c0c39d264dadc9f590eefbd3214118e42fa09c554b9245dc38d8c52
+    01_educational_design.md: sha256:9f116d50f6e249cad1ba50a63e0e69e572417a3329736bde146d5a1ff04c630c
+    02_design_principles.md: sha256:a6efc0015f01531c021789b33a6930ae462852648316f9b59dbff80fdab125e4
+    03_technical_spec.md: sha256:eefa60dd466de373b690af73fc7b8f2ece0fd8803f1c33ea0229c90cae4917e4
 purpose: 프로그램에 오류가 생겼을 때 스스로 원인을 분석하지 않고 AI에게 완성된 정답 코드를 바로 요구한다.
 target_learner: C언어를 처음 배우는 중·고등학생, 중학교 3학년 ~ 고등학교 1학년, 정보/컴퓨터과학, C언어 기초 문법과 디버깅
 learning_goals:

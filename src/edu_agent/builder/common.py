@@ -21,6 +21,14 @@ import yaml
 from edu_agent.runtime.prompt import build_system_prompt
 from edu_agent.schemas.agent import AgentSpec
 
+#: What an exported project depends on. A git reference rather than a version
+#: range because the harness is not on PyPI yet — and an exported project whose
+#: very first ``pip install`` fails is worse than one that pins a moving branch.
+#: Swap this for ``edu-agent-harness[openai]>=0.2.0`` once it is published.
+HARNESS_REQUIREMENT = (
+    "edu-agent-harness[openai] @ git+https://github.com/ldgit99/eduagent"
+)
+
 ENV_EXAMPLE = """\
 # 교수자가 배포한 값을 넣으세요. 이 파일(.env)은 커밋되지 않습니다.
 EDU_AGENT_API_KEY=
@@ -264,4 +272,4 @@ def _write_yaml(path: Path, data: dict[str, Any]) -> None:
     _write(path, yaml.safe_dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False))
 
 
-__all__ = ["ENV_EXAMPLE", "GITIGNORE", "gate_summary", "write_common"]
+__all__ = ["ENV_EXAMPLE", "GITIGNORE", "HARNESS_REQUIREMENT", "gate_summary", "write_common"]

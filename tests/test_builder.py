@@ -102,6 +102,17 @@ class TestCliTarget:
         assert "input(" in source
         assert "def main()" in source
 
+    def test_pins_a_harness_requirement_that_can_actually_be_installed(
+        self, tmp_project, compiled_spec
+    ):
+        from edu_agent.builder.common import HARNESS_REQUIREMENT
+
+        destination = tmp_project.root / "out-req"
+        export("cli", tmp_project, compiled_spec, destination)
+        text = (destination / "pyproject.toml").read_text(encoding="utf-8")
+        assert HARNESS_REQUIREMENT in text
+        assert "{harness}" not in text
+
 
 class TestFastapiTarget:
     @pytest.fixture
@@ -114,6 +125,13 @@ class TestFastapiTarget:
         text = (service / "pyproject.toml").read_text(encoding="utf-8")
         assert "fastapi" in text
         assert "uvicorn" in text
+
+    def test_pins_a_harness_requirement_that_can_actually_be_installed(self, service):
+        """A generated project whose first ``pip install`` fails is worse than none."""
+        from edu_agent.builder.common import HARNESS_REQUIREMENT
+
+        assert HARNESS_REQUIREMENT in (service / "pyproject.toml").read_text(encoding="utf-8")
+        assert "{harness}" not in (service / "pyproject.toml").read_text(encoding="utf-8")
 
     def test_exposes_the_documented_routes(self, service):
         source = (service / "app" / "main.py").read_text(encoding="utf-8")

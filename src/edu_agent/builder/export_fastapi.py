@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from edu_agent.builder.common import gate_summary, write_common
+from edu_agent.builder.common import HARNESS_REQUIREMENT, gate_summary, write_common
 from edu_agent.schemas.agent import AgentSpec
 
 _MAIN_PY = '''\
@@ -203,7 +203,7 @@ version = "0.1.0"
 description = "{role}"
 requires-python = ">=3.12"
 dependencies = [
-  "edu-agent-harness[openai]>=0.1.0",
+  "{harness}",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.32",
 ]
@@ -248,7 +248,9 @@ def export_fastapi(project, spec: AgentSpec, destination: Path) -> Path:
         newline="\n",
     )
     (destination / "pyproject.toml").write_text(
-        _PYPROJECT.format(slug=slug, role=role), encoding="utf-8", newline="\n"
+        _PYPROJECT.format(slug=slug, role=role, harness=HARNESS_REQUIREMENT),
+        encoding="utf-8",
+        newline="\n",
     )
     (destination / "Dockerfile").write_text(_DOCKERFILE, encoding="utf-8", newline="\n")
     return destination

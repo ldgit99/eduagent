@@ -1,6 +1,6 @@
 [project]
 name = "edu-agent-harness"
-version = "0.1.0"
+version = "0.2.0"
 description = "Pedagogy-Aware Educational AI Agent Engineering Harness — design, compile, build, simulate and evaluate educational AI agents from structured Markdown specifications."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 authors = [{ name = "edu-agent-harness contributors" }]
 keywords = ["education", "ai-agent", "instructional-design", "llm", "evaluation", "harness"]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Education",
   "Intended Audience :: Developers",
@@ -39,8 +39,8 @@ all-providers = ["openai>=1.50", "anthropic>=0.40", "google-genai>=1.0"]
 edu-agent = "edu_agent.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/edu-agent-harness/edu-agent-harness"
-Issues = "https://github.com/edu-agent-harness/edu-agent-harness/issues"
+Homepage = "https://github.com/ldgit99/eduagent"
+Issues = "https://github.com/ldgit99/eduagent/issues"
 
 [dependency-groups]
 dev = [

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from edu_agent.builder.common import gate_summary, write_common
+from edu_agent.builder.common import HARNESS_REQUIREMENT, gate_summary, write_common
 from edu_agent.schemas.agent import AgentSpec
 
 _AGENT_PY = '''\
@@ -86,7 +86,7 @@ edu-agent-harness 로 만든 교육용 AI 에이전트입니다.
 
 1. 필요한 것 설치
    ```
-   pip install edu-agent-harness[openai]
+   pip install -e .
    ```
 
 2. `.env.example` 을 `.env` 로 복사하고 값을 채우기
@@ -136,7 +136,7 @@ name = "{slug}"
 version = "0.1.0"
 description = "{role}"
 requires-python = ">=3.12"
-dependencies = ["edu-agent-harness[openai]>=0.1.0"]
+dependencies = ["{harness}"]
 
 [project.scripts]
 {slug} = "app.agent:main"
@@ -166,6 +166,8 @@ def export_cli(project, spec: AgentSpec, destination: Path) -> Path:
         newline="\n",
     )
     (destination / "pyproject.toml").write_text(
-        _PYPROJECT.format(slug=slug, role=role), encoding="utf-8", newline="\n"
+        _PYPROJECT.format(slug=slug, role=role, harness=HARNESS_REQUIREMENT),
+        encoding="utf-8",
+        newline="\n",
     )
     return destination
